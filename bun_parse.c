@@ -122,6 +122,71 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   return BUN_OK;
 }
 
+/**
+ * @brief Validates the integrity of RLE-compressed asset data.
+ *
+ * @param ctx Pointer to the current parse context for error reporting.
+ * @param header Pointer to the parsed BUN header for section offsets.
+ * @param r Pointer to the asset record being validated.
+ * @return BUN_OK if valid, BUN_MALFORMED on spec violation, or BUN_ERR_IO on read error.
+ */
+static bun_result_t validate_rle_data(BunParseContext *ctx, 
+                                      const BunHeader *header, 
+                                      const BunAssetRecord *r) {
+    // RLE data must be an even amount of bytes
+    if (r->data_size % 2 != 0) {
+        add_error(ctx, "RLE data size is not even");
+        return BUN_MALFORMED;
+    }
+
+    // Save current file position to get back to later
+    long saved_pos = ftell(ctx->file);
+    u64 data_start_abs = header->data_section_offset + r->data_offset;
+
+    if (fseek(ctx->file, data_start_abs, SEEK_SET) != 0) {
+        add_error(ctx, "Failed to seek to RLE data");
+        return BUN_ERR_IO;
+    }
+
+    // Getting the actual size of the data
+    u64 total_expanded = 0;
+    for (u64 j = 0; j < r->data_size; j += 2) {
+        int count = fgetc(ctx->file);
+        int value = fgetc(ctx->file);
+
+        if (count == EOF || value == EOF) {
+            add_error(ctx, "Unexpected EOF in RLE data");
+            // Cleaning up
+            fseek(ctx->file, saved_pos, SEEK_SET);
+            return BUN_MALFORMED;
+        }
+
+        // A count of zero is a spec violation
+        if (count == 0) {
+            add_error(ctx, "RLE pair has zero count");
+            fseek(ctx->file, saved_pos, SEEK_SET);
+            return BUN_MALFORMED;
+        }
+
+        total_expanded += (unsigned char)count;
+        if (total_expanded > r->uncompressed_size) {
+            add_error(ctx, "RLE data is bigger than specified uncompressed_size");
+            return BUN_MALFORMED;
+        }
+    }
+
+    // Check if our data size matches the header
+    if (total_expanded != r->uncompressed_size) {
+        add_error(ctx, "RLE expanded size mismatch");
+        fseek(ctx->file, saved_pos, SEEK_SET);
+        return BUN_MALFORMED;
+    }
+
+    // Restore original file position
+    fseek(ctx->file, saved_pos, SEEK_SET);
+    return BUN_OK;
+}
+
 bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
 
   // TODO: implement asset record parsing and validation
@@ -244,6 +309,17 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     if (r.data_offset + r.data_size > header->data_section_size) {
       add_error(ctx, "Asset data out of bounds");
       return BUN_MALFORMED;
+    }
+
+    // Compression checks
+    if (r.compression == 1) {
+        bun_result_t rle_res = validate_rle_data(ctx, header, &r);
+        if (rle_res != BUN_OK) {
+            return rle_res;
+        }
+    } else if (r.compression == 0 && r.uncompressed_size != 0) {
+        add_error(ctx, "Can't have non-zero uncompressed size for an uncompressed asset");
+        return BUN_MALFORMED;
     }
 
     printf("Asset %u\n", i);
