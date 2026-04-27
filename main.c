@@ -28,7 +28,6 @@ int main(int argc, char *argv[]) {
 
   BunParseContext ctx = {0};
   BunHeader header  = {0};
-  BunAssetRecord assetContent = {0};
 
   bun_result_t result = bun_open(path, &ctx);
   if (result != BUN_OK) {
@@ -68,16 +67,43 @@ if (header_result == BUN_OK && asset_result == BUN_OK) {
 
   printf("\n");
 
-  printf("------------ Asset Record ------------\n");
-  printf("Name Offset:        %u\n", assetContent.name_offset);
-  printf("Name Length:        %u\n", assetContent.name_length);
-  printf("Data Offset:        %" PRIu64 "\n", assetContent.data_offset);
-  printf("Data Size:          %" PRIu64 "\n", assetContent.data_size);
-  printf("Uncompressed Size:  %" PRIu64 "\n", assetContent.uncompressed_size);
-  printf("Compression:        %u\n", assetContent.compression);
-  printf("Type:               %u\n", assetContent.type);
-  printf("Checksum:           0x%08X\n", assetContent.checksum);
-  printf("Flags:              0x%08X\n", assetContent.flags);
+  // Read and print one asset record at a time (constant memory, works for any file size)
+  for (u32 i = 0; i < header.asset_count; i++) {
+    u8 rec[BUN_ASSET_RECORD_SIZE];
+    fseek(ctx.file, (long)(header.asset_table_offset + (u64)i * BUN_ASSET_RECORD_SIZE), SEEK_SET);
+    fread(rec, 1, BUN_ASSET_RECORD_SIZE, ctx.file);
+
+    BunAssetRecord a;
+    size_t o = 0;
+    a.name_offset       = (u32)rec[o]|(u32)rec[o+1]<<8|(u32)rec[o+2]<<16|(u32)rec[o+3]<<24; o+=4;
+    a.name_length       = (u32)rec[o]|(u32)rec[o+1]<<8|(u32)rec[o+2]<<16|(u32)rec[o+3]<<24; o+=4;
+    a.data_offset       = (u64)rec[o]|(u64)rec[o+1]<<8|(u64)rec[o+2]<<16|(u64)rec[o+3]<<24|(u64)rec[o+4]<<32|(u64)rec[o+5]<<40|(u64)rec[o+6]<<48|(u64)rec[o+7]<<56; o+=8;
+    a.data_size         = (u64)rec[o]|(u64)rec[o+1]<<8|(u64)rec[o+2]<<16|(u64)rec[o+3]<<24|(u64)rec[o+4]<<32|(u64)rec[o+5]<<40|(u64)rec[o+6]<<48|(u64)rec[o+7]<<56; o+=8;
+    a.uncompressed_size = (u64)rec[o]|(u64)rec[o+1]<<8|(u64)rec[o+2]<<16|(u64)rec[o+3]<<24|(u64)rec[o+4]<<32|(u64)rec[o+5]<<40|(u64)rec[o+6]<<48|(u64)rec[o+7]<<56; o+=8;
+    a.compression       = (u32)rec[o]|(u32)rec[o+1]<<8|(u32)rec[o+2]<<16|(u32)rec[o+3]<<24; o+=4;
+    a.type              = (u32)rec[o]|(u32)rec[o+1]<<8|(u32)rec[o+2]<<16|(u32)rec[o+3]<<24; o+=4;
+    a.checksum          = (u32)rec[o]|(u32)rec[o+1]<<8|(u32)rec[o+2]<<16|(u32)rec[o+3]<<24; o+=4;
+    a.flags             = (u32)rec[o]|(u32)rec[o+1]<<8|(u32)rec[o+2]<<16|(u32)rec[o+3]<<24;
+
+    // read name from string table
+    u32 name_len = a.name_length < 255 ? a.name_length : 255;
+    char name[256] = {0};
+    fseek(ctx.file, (long)(header.string_table_offset + a.name_offset), SEEK_SET);
+    fread(name, 1, name_len, ctx.file);
+
+    printf("------------ Asset %u ------------\n", i);
+    printf("Name:               %s\n",          name);
+    printf("Name Offset:        %u\n",           a.name_offset);
+    printf("Name Length:        %u\n",           a.name_length);
+    printf("Data Offset:        %" PRIu64 "\n", a.data_offset);
+    printf("Data Size:          %" PRIu64 "\n", a.data_size);
+    printf("Uncompressed Size:  %" PRIu64 "\n", a.uncompressed_size);
+    printf("Compression:        %u\n",           a.compression);
+    printf("Type:               %u\n",           a.type);
+    printf("Checksum:           0x%08X\n",       a.checksum);
+    printf("Flags:              0x%08X\n",       a.flags);
+    printf("\n");
+  }
 }
 
   bun_close(&ctx);
