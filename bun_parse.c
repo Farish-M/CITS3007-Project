@@ -16,6 +16,22 @@
   }
 }
 
+// Accumulates new results, and prioritise the "worst" error
+// Priority: BUN_ERROR_IO > BUN_MALFORMED > BUN_SUPPORTED
+// If no errors then BUN_OK
+static bun_result_t worst_error(bun_result_t current, bun_result_t incoming) {
+  if(incoming == BUN_ERR_IO || current == BUN_ERR_IO) {
+    return BUN_ERR_IO;
+  }
+  if(incoming == BUN_MALFORMED || current == BUN_MALFORMED) {
+    return BUN_MALFORMED;
+  }
+  if(incoming == BUN_UNSUPPORTED || current == BUN_UNSUPPORTED) {
+    return BUN_UNSUPPORTED;
+  }
+  return BUN_OK;
+}
+
 static u32 read_u32_le(const u8 *buf, size_t offset) {
   return (u32)buf[offset]
      | (u32)buf[offset + 1] << 8
