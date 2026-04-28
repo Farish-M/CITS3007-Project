@@ -308,39 +308,52 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     r.flags = read_u32_le(buf, o);
 
     int name_ok = 1;
-    char name[256];
-    if(r.name_length > sizeof(name)) {
-      add_error(ctx, "Asset name too large for buffer");
-      result = worst_error(result, BUN_MALFORMED);
-    }
+    
     if (r.name_length == 0) {
-      add_error(ctx, "Invalid asset name length");
+      add_error(ctx, "Name does not exist");
       result = worst_error(result, BUN_MALFORMED);
+      name_ok = 0;
     }
     
     if ((u64)r.name_offset + (u64)r.name_length > header->string_table_size) {
       add_error(ctx, "Asset name out of string table bounds");
       result = worst_error(result, BUN_MALFORMED);
+      name_ok = 0;
     }
-
-    u64 name_start_abs = header->string_table_offset + r.name_offset;
-    
-    if(fseek(ctx->file, name_start_abs, SEEK_SET) != 0) {
-      add_error(ctx, "Failed to seek to asset name");
-      result = worst_error(result, BUN_MALFORMED);
-    }
-
-    if(fread(name, 1, r.name_length, ctx->file) != r.name_length) {
-      add_error(ctx, "Failed to read asset name");
-      result = worst_error(result, BUN_MALFORMED);
-    }
-
-    for(u32 j = 0; j < r.name_length; j++) {
-      unsigned char c = name[j];
-      if(c < 32 || c > 126) {
-        add_error(ctx, "Non-printable asset name");
+    if(name_ok) {
+      if(r.name_length > 255) {
+        add_error(ctx, "Asset name too large for buffer");
         result = worst_error(result, BUN_MALFORMED);
+        name_ok = 0;
       }
+      else {
+        char name[256];
+        u64 name_start_abs = header->string_table_offset + r.name_offset;
+        
+        if(fseek(ctx->file, name_start_abs, SEEK_SET) != 0) {
+          add_error(ctx, "Failed to seek to asset name");
+          result = worst_error(result, BUN_MALFORMED);
+        }
+
+        if(fread(name, 1, r.name_length, ctx->file) != r.name_length) {
+          add_error(ctx, "Failed to read asset name");
+          result = worst_error(result, BUN_MALFORMED);
+            name_ok = 0;
+        }
+
+        for(u32 j = 0; j < r.name_length; j++) {
+          unsigned char c = name[j];
+          if(c < 32 || c > 126) {
+            add_error(ctx, "Non-printable asset name");
+            result = worst_error(result, BUN_MALFORMED);
+          }
+        }
+      }
+    }
+
+    if(fseek(ctx->file, next_record_pos, SEEK_SET) != 0) {
+      add_error(ctx, "Failed to seek asset table for next record");
+      return worst_error(result, BUN_ERR_IO);
     }
 
     if (r.data_offset + r.data_size > header->data_section_size) {
