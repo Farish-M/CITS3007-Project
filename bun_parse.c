@@ -356,7 +356,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
         }
     } else if (r.compression == 0 && r.uncompressed_size != 0) {
         add_error(ctx, "Can't have non-zero uncompressed size for an uncompressed asset");
-        return BUN_MALFORMED;
+        result = worst_error(result, BUN_MALFORMED);
     }
 
     if(r.checksum != 0) {
