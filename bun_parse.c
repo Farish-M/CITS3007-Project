@@ -248,6 +248,21 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   u64 d_start = header->data_section_offset;
   u64 d_end = d_start + header->data_section_size;
 
+  if(a_end > file_size) {
+    add_error(ctx, "Asset entry table exceeds boundaries");
+    result = worst_error(result, BUN_MALFORMED);
+  }
+
+  if(s_end > file_size) {
+    add_error(ctx, "String table exceeds boundaries");
+    result = worst_error(result, BUN_MALFORMED);
+  }
+
+  if(d_end > file_size) {
+    add_error(ctx, "Data section exceeds boundaries");
+    result = worst_error(result, BUN_MALFORMED);
+  }
+
   if (a_end > s_start && a_start < s_end) {
     add_error(ctx, "Asset and string table overlap");
     return BUN_MALFORMED;
