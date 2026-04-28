@@ -210,42 +210,37 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
 }
 
 bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
+  bun_result_t result = BUN_OK;
+  u64 file_size = (u64)ctx->file_size;
 
   // TODO: implement asset record parsing and validation
-  if(header->asset_table_offset % 4 != 0 ||
-     header->string_table_offset % 4 != 0 ||
-     header->data_section_offset % 4 != 0) {
-      add_error(ctx, "Misaligned section offset");
-      return BUN_MALFORMED;
-     }
-  if(
-     header->string_table_size % 4 != 0 ||
-     header->data_section_size % 4 != 0) {
-    add_error(ctx, "Misaligned section size");
-    return BUN_MALFORMED;
+  if(header->asset_table_offset % 4 != 0) {
+    add_error(ctx, "asset_table_offset is misaligned");
+    result = worst_error(result, BUN_MALFORMED);
   }
 
-  if(fseek(ctx->file, header-> asset_table_offset, SEEK_SET) != 0) {
-    add_error(ctx, "Failed to seek asset table");
-    return BUN_MALFORMED;
+  if(header->string_table_offset % 4 != 0) {
+    add_error(ctx, "string_table_offset is misaligned");
+    result = worst_error(result, BUN_MALFORMED);
   }
 
-  if(header->asset_table_offset > (u64)ctx-> file_size) {
-    add_error(ctx, "Invalid asset table offset");
-    return BUN_MALFORMED;
+  if(header->data_section_offset % 4 != 0) {
+    add_error(ctx, "data_section_offset is misaligned");
+    result = worst_error(result, BUN_MALFORMED);
   }
 
-  if(header->data_section_offset > (u64)ctx->file_size) {
-    add_error(ctx, "Invalid data section offset");
-    return BUN_MALFORMED;
+  if(header->string_table_size % 4 != 0) {
+    add_error(ctx, "string_table_size is misaligned");
+    result = worst_error(result, BUN_MALFORMED);
+  }
+  if(header->data_section_size % 4 != 0) {
+    add_error(ctx, "data_section_size is misalgined");
+    result = worst_error(result, BUN_MALFORMED);
   }
 
-  if(header->string_table_offset > (u64)ctx->file_size) {
-    add_error(ctx, "Invalid string table offset");
-    return BUN_MALFORMED;
-  }
   u64 a_start = header->asset_table_offset;
-  u64 a_end = a_start + header->asset_count * BUN_ASSET_RECORD_SIZE;
+  u64 a_size = a_start + header->asset_count * BUN_ASSET_RECORD_SIZE;
+  u64 a_end = a_start + a_size;
 
   u64 s_start = header->string_table_offset;
   u64 s_end = s_start + header->string_table_size;
