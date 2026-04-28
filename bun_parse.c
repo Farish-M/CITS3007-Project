@@ -265,17 +265,17 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
 
   if (a_end > s_start && a_start < s_end) {
     add_error(ctx, "Asset and string table overlap");
-    return BUN_MALFORMED;
+    result = worst_error(result, BUN_MALFORMED);
   }
 
   if (a_end > d_start && a_start < d_end) {
     add_error(ctx, "Asset and data section overlap");
-    return BUN_MALFORMED;
+    result = worst_error(result, BUN_MALFORMED);
   }
 
   if (s_end > d_start && s_start < d_end) {
     add_error(ctx, "String and data section overlap");
-    return BUN_MALFORMED;
+    result = worst_error(result, BUN_MALFORMED);
   }
 
 
