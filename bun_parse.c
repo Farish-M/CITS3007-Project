@@ -197,71 +197,81 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     return BUN_MALFORMED;
   }
 
+  for (u32 i = 0; i < header->asset_count; i++) {
+    u8 buf[BUN_ASSET_RECORD_SIZE];
+    
+    // Go to the specific record in the table
+    fseek(ctx->file, header->asset_table_offset + (i * BUN_ASSET_RECORD_SIZE), SEEK_SET);
 
-
-  u8 buf[BUN_ASSET_RECORD_SIZE];
-
-  if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) != BUN_ASSET_RECORD_SIZE) {
-    add_error(ctx, "Unexpected EOF in asset record");
-    return BUN_MALFORMED;
-  }
-
-  BunAssetRecord AssetContent;
-  size_t o = 0;
-
-  AssetContent.name_offset = read_u32_le(buf, o); o += 4;
-  AssetContent.name_length = read_u32_le(buf, o); o += 4;
-  AssetContent.data_offset = read_u64_le(buf, o); o += 8;
-  AssetContent.data_size = read_u64_le(buf, o); o += 8;
-
-  AssetContent.uncompressed_size = read_u64_le(buf, o); o += 8;
-  AssetContent.compression = read_u32_le(buf, o); o += 4;
-  AssetContent.type = read_u32_le(buf, o); o += 4;
-  AssetContent.checksum = read_u32_le(buf, o); o += 4;
-  AssetContent.flags = read_u32_le(buf, o);
-
-  char name[256];
-  if(AssetContent.name_length > sizeof(name)) {
-    add_error(ctx, "Asset name too large for buffer");
-    return BUN_MALFORMED;
-  }
-  if (AssetContent.name_length == 0) {
-    add_error(ctx, "Invalid asset name length");
-    return BUN_MALFORMED;
-  }
-
-  //u64 name_end_abs = name_start_abs + AssetContent.name_length;
-  
-  if ((u64)AssetContent.name_offset + (u64)AssetContent.name_length > header->string_table_size) {
-    add_error(ctx, "Asset name out of string table bounds");
-    return BUN_MALFORMED;
-  }
-
-  u64 name_start_abs = header->string_table_offset + AssetContent.name_offset;
-  
-  if(fseek(ctx->file, name_start_abs, SEEK_SET) != 0) {
-    add_error(ctx, "Failed to seek to asset name");
-    return BUN_MALFORMED;
-  }
-
-  if(fread(name, 1, AssetContent.name_length, ctx->file) != AssetContent.name_length) {
-    add_error(ctx, "Failed to read asset name");
-    return BUN_MALFORMED;
-  }
-
-  for(u32 j = 0; j < AssetContent.name_length; j++) {
-    unsigned char c = name[j];
-    if(c < 32 || c > 126) {
-      add_error(ctx, "Non-printable asset name");
+    if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) != BUN_ASSET_RECORD_SIZE) {
+      add_error(ctx, "Unexpected EOF in asset record");
       return BUN_MALFORMED;
     }
-  }
 
-  if (AssetContent.data_offset + AssetContent.data_size > header->data_section_size) {
-    add_error(ctx, "Asset data out of bounds");
-    return BUN_MALFORMED;
+    BunAssetRecord AssetContent;
+    size_t o = 0;
+
+    AssetContent.name_offset = read_u32_le(buf, o); o += 4;
+    AssetContent.name_length = read_u32_le(buf, o); o += 4;
+    AssetContent.data_offset = read_u64_le(buf, o); o += 8;
+    AssetContent.data_size = read_u64_le(buf, o); o += 8;
+
+    AssetContent.uncompressed_size = read_u64_le(buf, o); o += 8;
+    AssetContent.compression = read_u32_le(buf, o); o += 4;
+    AssetContent.type = read_u32_le(buf, o); o += 4;
+    AssetContent.checksum = read_u32_le(buf, o); o += 4;
+    AssetContent.flags = read_u32_le(buf, o);
+
+    char name[256];
+    if(AssetContent.name_length >= sizeof(name)) {
+      add_error(ctx, "Asset name too large for buffer");
+      return BUN_MALFORMED;
+    }
+    if (AssetContent.name_length == 0) {
+      add_error(ctx, "Invalid asset name length");
+      return BUN_MALFORMED;
+    }
+
+    if ((u64)AssetContent.name_offset + (u64)AssetContent.name_length > header->string_table_size) {
+      add_error(ctx, "Asset name out of string table bounds");
+      return BUN_MALFORMED;
+    }
+
+    u64 name_start_abs = header->string_table_offset + AssetContent.name_offset;
+    
+    if(fseek(ctx->file, name_start_abs, SEEK_SET) != 0) {
+      add_error(ctx, "Failed to seek to asset name");
+      return BUN_MALFORMED;
+    }
+
+    memset(name, 0, sizeof(name));
+    if(fread(name, 1, AssetContent.name_length, ctx->file) != AssetContent.name_length) {
+      add_error(ctx, "Failed to read asset name");
+      return BUN_MALFORMED;
+    }
+
+    for(u32 j = 0; j < AssetContent.name_length; j++) {
+      unsigned char c = name[j];
+      if(c < 32 || c > 126) {
+        add_error(ctx, "Non-printable asset name");
+        return BUN_MALFORMED;
+      }
+    }
+
+    if (AssetContent.data_offset + AssetContent.data_size > header->data_section_size) {
+      add_error(ctx, "Asset data out of bounds");
+      return BUN_MALFORMED;
+    }
+
+    printf("------------ Asset %u ------------\n", i);
+    printf("Name:               %s\n", name);
+    printf("Type:               %u\n", AssetContent.type);
+    printf("Size:               %llu\n", (unsigned long long)AssetContent.data_size);
+    printf("Uncompressed Size:  %llu\n", (unsigned long long)AssetContent.uncompressed_size);
+    printf("Compression:        %u\n", AssetContent.compression);
+    printf("Checksum:           0x%08X\n", AssetContent.checksum);
+    printf("Flags:              0x%08X\n\n", AssetContent.flags);
   }
-  
 
   return BUN_OK;
 }
