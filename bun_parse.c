@@ -130,7 +130,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
     return BUN_MALFORMED;
   }
 
-  if(header->version_major != BUN_VERSION_MAJOR) {
+  if(header->version_major != BUN_VERSION_MAJOR || header->version_minor != BUN_VERSION_MINOR) {
     add_error(ctx, "Invalid version");
     return BUN_UNSUPPORTED;
   }
