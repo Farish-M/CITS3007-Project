@@ -9,12 +9,12 @@
 //
 
 typedef enum {
-    BUN_OK          = 0,
-    BUN_MALFORMED   = 1,
-    BUN_UNSUPPORTED = 2,
-    BUN_ERR_IO      = 3,   /* I/O error or file not found -- you may define
-                              additional codes in the range 3-10 as needed;
-                              document them in your report */
+  BUN_OK = 0,
+  BUN_MALFORMED = 1,
+  BUN_UNSUPPORTED = 2,
+  BUN_ERR_IO = 3, /* I/O error or file not found -- you may define
+                     additional codes in the range 3-10 as needed;
+                     document them in your report */
 } bun_result_t;
 
 //
@@ -22,7 +22,7 @@ typedef enum {
 // All multi-byte integers are little-endian on disk.
 //
 
-typedef uint8_t  u8;
+typedef uint8_t u8;
 typedef uint16_t u16;
 typedef uint32_t u32;
 typedef uint64_t u64;
@@ -31,43 +31,43 @@ typedef uint64_t u64;
 // On-disk structures (per BUN spec sections 4 and 5)
 //
 
-#define BUN_MAGIC         0x304E5542u   // "BUN0" in little-endian
+#define BUN_MAGIC 0x304E5542u // "BUN0" in little-endian
 #define BUN_VERSION_MAJOR 1
 #define BUN_VERSION_MINOR 0
 
-#define BUN_FLAG_ENCRYPTED  0x1u
+#define BUN_FLAG_ENCRYPTED 0x1u
 #define BUN_FLAG_EXECUTABLE 0x2u
 
 typedef struct {
-    u32 magic;
-    u16 version_major;
-    u16 version_minor;
-    u32 asset_count;
-    u64 asset_table_offset;
-    u64 string_table_offset;
-    u64 string_table_size;
-    u64 data_section_offset;
-    u64 data_section_size;
-    u64 reserved;
+  u32 magic;
+  u16 version_major;
+  u16 version_minor;
+  u32 asset_count;
+  u64 asset_table_offset;
+  u64 string_table_offset;
+  u64 string_table_size;
+  u64 data_section_offset;
+  u64 data_section_size;
+  u64 reserved;
 } BunHeader;
 
 typedef struct {
-    u32 name_offset;
-    u32 name_length;
-    u64 data_offset;
-    u64 data_size;
-    u64 uncompressed_size;
-    u32 compression;
-    u32 type;
-    u32 checksum;
-    u32 flags;
+  u32 name_offset;
+  u32 name_length;
+  u64 data_offset;
+  u64 data_size;
+  u64 uncompressed_size;
+  u32 compression;
+  u32 type;
+  u32 checksum;
+  u32 flags;
 } BunAssetRecord;
 
 //
 // Expected on-disk sizes -- these can be used in assertions or static_asserts.
 //
 
-#define BUN_HEADER_SIZE       60
+#define BUN_HEADER_SIZE 60
 #define BUN_ASSET_RECORD_SIZE 48
 #define MAX_ERRORS 32
 
@@ -80,13 +80,12 @@ typedef struct {
 // You will likely want to add fields to it as your implementation grows.
 //
 
-
 typedef struct {
-    FILE   *file;           // open file handle
-    long    file_size;      // total file size in bytes
-    // add further fields here as needed
-    const char *errors[MAX_ERRORS];
-    int error_count;
+  FILE *file;     // open file handle
+  long file_size; // total file size in bytes
+  // add further fields here as needed
+  const char *errors[MAX_ERRORS];
+  int error_count;
 } BunParseContext;
 
 //

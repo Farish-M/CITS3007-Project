@@ -14,9 +14,9 @@ LIB     = bun_parse.c
 MAIN    = main.c
 TEST    = tests/test_bun.c
 
-.PHONY: all test clean
+.PHONY: all test clean format
 
-all: bun_parser
+all: format bun_parser
 
 bun_parser: $(MAIN) $(LIB)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
@@ -31,3 +31,7 @@ tests/test_runner: $(TEST) $(LIB)
 
 clean:
 	-rm bun_parser tests/test_runner *.o
+
+format:
+	clang-format -i *.c *.h
+
