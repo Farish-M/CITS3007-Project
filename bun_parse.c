@@ -338,6 +338,16 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
         return BUN_MALFORMED;
     }
 
+    if(r.checksum != 0) {
+      add_error(ctx, "CRC-32 checksum validation is not supported");
+      result = worst_error(result, BUN_UNSUPPORTED);
+    }
+
+    if(r.flags & ~(BUN_FLAG_ENCRYPTED | BUN_FLAG_EXECUTABLE)) {
+      add_error(ctx, "Asset flags contains unknown bits");
+      result = worst_error(result, BUN_UNSUPPORTED);
+    }
+
     printf("Asset %u\n", i);
     printf("Type: %u\n", r.type);
     printf("Size: %llu\n", (unsigned long long)r.data_size);
