@@ -278,6 +278,10 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     result = worst_error(result, BUN_MALFORMED);
   }
 
+  if(fseek(ctx->file, (long)a_start, SEEK_SET) != 0) {
+    add_error(ctx, "Failed to seek asset table");
+    result = worst_error(result, BUN_ERR_IO);
+  }
 
   for (u32 i = 0; i < header->asset_count; i++) {
     u8 buf[BUN_ASSET_RECORD_SIZE];
