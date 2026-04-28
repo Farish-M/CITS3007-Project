@@ -157,6 +157,10 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
 
     // Save current file position to get back to later
     long saved_pos = ftell(ctx->file);
+    if (saved_pos < 0) {
+      add_error(ctx, "ftell failed before RLE validation");
+      return BUN_ERR_IO;
+    }
     u64 data_start_abs = header->data_section_offset + r->data_offset;
 
     if (fseek(ctx->file, data_start_abs, SEEK_SET) != 0) {
