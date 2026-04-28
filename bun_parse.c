@@ -286,10 +286,12 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   for (u32 i = 0; i < header->asset_count; i++) {
     u8 buf[BUN_ASSET_RECORD_SIZE];
 
-    if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) != BUN_ASSET_RECORD_SIZE) {
-      add_error(ctx, "Unexpected EOF in asset record");
-      return BUN_MALFORMED;
-    }
+  long next_record_pos = (long)(a_start + (u64)(i + 1) * BUN_ASSET_RECORD_SIZE);
+
+  if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) != BUN_ASSET_RECORD_SIZE) {
+    add_error(ctx, "Unexpected EOF in asset record");
+    return BUN_MALFORMED;
+  }
 
     BunAssetRecord r;
     size_t o = 0;
@@ -314,8 +316,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
       add_error(ctx, "Invalid asset name length");
       return BUN_MALFORMED;
     }
-
-    //u64 name_end_abs = name_start_abs + r.name_length;
     
     if ((u64)r.name_offset + (u64)r.name_length > header->string_table_size) {
       add_error(ctx, "Asset name out of string table bounds");
