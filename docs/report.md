@@ -3,7 +3,7 @@
 **Group Number:** 40
 
 **Group Members:**
-* Name: David Pang, Student Number: 24128968, GitHub: [Username]
+* Name: David Pang, Student Number: 24128968, GitHub: pohhui247
 * Name: Farish Mohamed Rozlan, Student Number: 23403278, GitHub: Farish-M
 * Name: James Turner, Student Number: 23460542, GitHub: 23460542
 * Name: Rania Khan, Student Number: 23770327, GitHub: raniak33
