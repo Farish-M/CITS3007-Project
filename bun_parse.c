@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #include "bun.h"
 
@@ -34,6 +35,21 @@ static u64 read_u64_le(const u8 *b, size_t o) {
      | (u64)b[o + 7] << 56;
 }
 
+static int isMagic(const BunHeader *header) {
+  return header->magic == BUN_MAGIC;
+}
+
+static int validVersion(const BunHeader *header) {
+  return header->version_major == BUN_VERSION_MAJOR;
+}
+
+static int sectionsAligned(const BunHeader *header) {
+  return (header->asset_table_offset % 4 == 0 &&
+          header->string_table_offset % 4 == 0 &&
+          header->data_section_offset % 4 == 0 &&
+          header->string_table_size % 4 == 0 &&
+          header->data_section_size % 4 == 0);
+}
 //
 // API implementation
 //
@@ -82,39 +98,39 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   }
 
   // TODO: populate `header` from `buf`.
-  size_t o = 0;
-  header->magic = read_u32_le(buf, o);
-  o+= 4;
+  size_t offset = 0;
+  header->magic = read_u32_le(buf, offset);
+  offset+= 4;
 
-  header->version_major = (buf[o] | (buf[o + 1] << 8));
-  o += 2;
-  header->version_minor = (buf[o] | (buf[o + 1] << 8));
-  o += 2;
+  header->version_major = (buf[offset] | (buf[offset + 1] << 8));
+  offset += 2;
+  header->version_minor = (buf[offset] | (buf[offset + 1] << 8));
+  offset += 2;
 
-  header->asset_count = read_u32_le(buf, o);
-  o+= 4;
+  header->asset_count = read_u32_le(buf, offset);
+  offset+= 4;
 
-  header->asset_table_offset = read_u64_le(buf, o);
-  o += 8;
-  header->string_table_offset = read_u64_le(buf, o);
-  o += 8;
-  header->string_table_size = read_u64_le(buf, o);
-  o += 8;
-  header->data_section_offset = read_u64_le(buf, o);
-  o += 8;
-  header->data_section_size = read_u64_le(buf, o);
-  o += 8;
-  header->reserved = read_u64_le(buf, o);
+  header->asset_table_offset = read_u64_le(buf, offset);
+  offset += 8;
+  header->string_table_offset = read_u64_le(buf, offset);
+  offset += 8;
+  header->string_table_size = read_u64_le(buf, offset);
+  offset += 8;
+  header->data_section_offset = read_u64_le(buf, offset);
+  offset += 8;
+  header->data_section_size = read_u64_le(buf, offset);
+  offset += 8;
+  header->reserved = read_u64_le(buf, offset);
 
   // TODO: validate fields and return BUN_MALFORMED or BUN_UNSUPPORTED
   // as required by the spec. The magic check is a good place to start.
 
-  if (header->magic != BUN_MAGIC) {
+  if (!isMagic(header)) {
     add_error(ctx, "Invalid magic number");
     return BUN_MALFORMED;
   }
 
-  if(header->version_major != BUN_VERSION_MAJOR) {
+  if (!validVersion(header)) {
     add_error(ctx, "Invalid version");
     return BUN_UNSUPPORTED;
   }
@@ -190,16 +206,8 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
 bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
 
   // TODO: implement asset record parsing and validation
-  if(header->asset_table_offset % 4 != 0 ||
-     header->string_table_offset % 4 != 0 ||
-     header->data_section_offset % 4 != 0) {
-      add_error(ctx, "Misaligned section offset");
-      return BUN_MALFORMED;
-     }
-  if(
-     header->string_table_size % 4 != 0 ||
-     header->data_section_size % 4 != 0) {
-    add_error(ctx, "Misaligned section size");
+  if (!sectionsAligned(header)) {
+    add_error(ctx, "Misaligned section offset or size");
     return BUN_MALFORMED;
   }
 
@@ -222,83 +230,92 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     add_error(ctx, "Invalid string table offset");
     return BUN_MALFORMED;
   }
-  u64 a_start = header->asset_table_offset;
-  u64 a_end = a_start + header->asset_count * BUN_ASSET_RECORD_SIZE;
 
-  u64 s_start = header->string_table_offset;
-  u64 s_end = s_start + header->string_table_size;
+  u32 counttest = header->asset_count;
+  fprintf(stderr, "[DEBUG] asset_count=%" PRIu32 "\n", counttest);
+  
+  u64 assetTableStart = header->asset_table_offset;
+  u64 assetTableEnd = assetTableStart + (u64)header->asset_count * BUN_ASSET_RECORD_SIZE;
 
-  u64 d_start = header->data_section_offset;
-  u64 d_end = d_start + header->data_section_size;
+  u64 stringTableStart = header->string_table_offset;
+  u64 stringTableEnd = stringTableStart + header->string_table_size;
 
-  if (a_end > s_start && a_start < s_end) {
+  u64 dataTableStart = header->data_section_offset;
+  u64 dataTableEnd = dataTableStart + header->data_section_size;
+
+  fprintf(stderr, "[DEBUG] assetTableStart=%" PRIu64 " assetTableEnd=%" PRIu64 "\n", assetTableStart, assetTableEnd);
+  fprintf(stderr, "[DEBUG] stringTableStart=%" PRIu64 " stringTableEnd=%" PRIu64 "\n", stringTableStart, stringTableEnd);
+  fprintf(stderr, "[DEBUG] dataTableStart=%" PRIu64 " dataTableEnd=%" PRIu64 "\n", dataTableStart, dataTableEnd);
+
+  if (assetTableEnd > stringTableStart && assetTableStart < stringTableEnd) {
     add_error(ctx, "Asset and string table overlap");
     return BUN_MALFORMED;
   }
 
-  if (a_end > d_start && a_start < d_end) {
+  if (assetTableEnd > dataTableStart && assetTableStart < dataTableEnd) {
     add_error(ctx, "Asset and data section overlap");
     return BUN_MALFORMED;
   }
 
-  if (s_end > d_start && s_start < d_end) {
+  if (stringTableEnd > dataTableStart && stringTableStart < dataTableEnd) {
     add_error(ctx, "String and data section overlap");
     return BUN_MALFORMED;
   }
 
-
   for (u32 i = 0; i < header->asset_count; i++) {
     u8 buf[BUN_ASSET_RECORD_SIZE];
+    
+    // Go to the specific record in the table
+    fseek(ctx->file, header->asset_table_offset + (i * BUN_ASSET_RECORD_SIZE), SEEK_SET);
 
     if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) != BUN_ASSET_RECORD_SIZE) {
       add_error(ctx, "Unexpected EOF in asset record");
       return BUN_MALFORMED;
     }
 
-    BunAssetRecord r;
+    BunAssetRecord AssetContent;
     size_t o = 0;
 
-    r.name_offset = read_u32_le(buf, o); o += 4;
-    r.name_length = read_u32_le(buf, o); o += 4;
-    r.data_offset = read_u64_le(buf, o); o += 8;
-    r.data_size = read_u64_le(buf, o); o += 8;
+    AssetContent.name_offset = read_u32_le(buf, o); o += 4;
+    AssetContent.name_length = read_u32_le(buf, o); o += 4;
+    AssetContent.data_offset = read_u64_le(buf, o); o += 8;
+    AssetContent.data_size = read_u64_le(buf, o); o += 8;
 
-    r.uncompressed_size = read_u64_le(buf, o); o += 8;
-    r.compression = read_u32_le(buf, o); o += 4;
-    r.type = read_u32_le(buf, o); o += 4;
-    r.checksum = read_u32_le(buf, o); o += 4;
-    r.flags = read_u32_le(buf, o);
+    AssetContent.uncompressed_size = read_u64_le(buf, o); o += 8;
+    AssetContent.compression = read_u32_le(buf, o); o += 4;
+    AssetContent.type = read_u32_le(buf, o); o += 4;
+    AssetContent.checksum = read_u32_le(buf, o); o += 4;
+    AssetContent.flags = read_u32_le(buf, o);
 
     char name[256];
-    if(r.name_length > sizeof(name)) {
+    if(AssetContent.name_length >= sizeof(name)) {
       add_error(ctx, "Asset name too large for buffer");
       return BUN_MALFORMED;
     }
-    if (r.name_length == 0) {
+    if (AssetContent.name_length == 0) {
       add_error(ctx, "Invalid asset name length");
       return BUN_MALFORMED;
     }
 
-    //u64 name_end_abs = name_start_abs + r.name_length;
-    
-    if ((u64)r.name_offset + (u64)r.name_length > header->string_table_size) {
+    if ((u64)AssetContent.name_offset + (u64)AssetContent.name_length > header->string_table_size) {
       add_error(ctx, "Asset name out of string table bounds");
       return BUN_MALFORMED;
     }
 
-    u64 name_start_abs = header->string_table_offset + r.name_offset;
+    u64 name_start_abs = header->string_table_offset + AssetContent.name_offset;
     
     if(fseek(ctx->file, name_start_abs, SEEK_SET) != 0) {
       add_error(ctx, "Failed to seek to asset name");
       return BUN_MALFORMED;
     }
 
-    if(fread(name, 1, r.name_length, ctx->file) != r.name_length) {
+    memset(name, 0, sizeof(name));
+    if(fread(name, 1, AssetContent.name_length, ctx->file) != AssetContent.name_length) {
       add_error(ctx, "Failed to read asset name");
       return BUN_MALFORMED;
     }
 
-    for(u32 j = 0; j < r.name_length; j++) {
+    for(u32 j = 0; j < AssetContent.name_length; j++) {
       unsigned char c = name[j];
       if(c < 32 || c > 126) {
         add_error(ctx, "Non-printable asset name");
@@ -306,25 +323,31 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
       }
     }
 
-    if (r.data_offset + r.data_size > header->data_section_size) {
+    if (AssetContent.data_offset + AssetContent.data_size > header->data_section_size) {
       add_error(ctx, "Asset data out of bounds");
       return BUN_MALFORMED;
     }
 
     // Compression checks
-    if (r.compression == 1) {
-        bun_result_t rle_res = validate_rle_data(ctx, header, &r);
+    if (AssetContent.compression == 1) {
+        // We use &AssetContent here because validate_rle_data needs a pointer
+        bun_result_t rle_res = validate_rle_data(ctx, header, &AssetContent);
         if (rle_res != BUN_OK) {
             return rle_res;
         }
-    } else if (r.compression == 0 && r.uncompressed_size != 0) {
+    } else if (AssetContent.compression == 0 && AssetContent.uncompressed_size != 0) {
         add_error(ctx, "Can't have non-zero uncompressed size for an uncompressed asset");
         return BUN_MALFORMED;
     }
 
-    printf("Asset %u\n", i);
-    printf("Type: %u\n", r.type);
-    printf("Size: %llu\n", (unsigned long long)r.data_size);
+    printf("------------ Asset %u ------------\n", i);
+    printf("Name:                %s\n", name);
+    printf("Type:                %u\n", AssetContent.type);
+    printf("Size:                %llu\n", (unsigned long long)AssetContent.data_size);
+    printf("Uncompressed Size:   %llu\n", (unsigned long long)AssetContent.uncompressed_size);
+    printf("Compression:         %u\n", AssetContent.compression);
+    printf("Checksum:            0x%08X\n", AssetContent.checksum);
+    printf("Flags:               0x%08X\n\n", AssetContent.flags);
   }
 
   return BUN_OK;
