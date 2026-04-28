@@ -125,14 +125,16 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   // TODO: validate fields and return BUN_MALFORMED or BUN_UNSUPPORTED
   // as required by the spec. The magic check is a good place to start.
 
+  bun_result_t result = BUN_OK;
+
   if (header->magic != BUN_MAGIC) {
     add_error(ctx, "Invalid magic number");
-    return BUN_MALFORMED;
+    result = worst_error(result, BUN_MALFORMED);
   }
 
   if(header->version_major != BUN_VERSION_MAJOR || header->version_minor != BUN_VERSION_MINOR) {
     add_error(ctx, "Invalid version");
-    return BUN_UNSUPPORTED;
+    result = worst_error(result, BUN_UNSUPPORTED);
   }
 
   return BUN_OK;
