@@ -137,7 +137,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
     result = worst_error(result, BUN_UNSUPPORTED);
   }
 
-  return BUN_OK;
+  return result;
 }
 
 /**
@@ -239,7 +239,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   }
 
   u64 a_start = header->asset_table_offset;
-  u64 a_size = a_start + header->asset_count * BUN_ASSET_RECORD_SIZE;
+  u64 a_size = header->asset_count * BUN_ASSET_RECORD_SIZE;
   u64 a_end = a_start + a_size;
 
   u64 s_start = header->string_table_offset;
