@@ -381,20 +381,18 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
       add_error(ctx, "Asset flags contains unknown bits");
       result = worst_error(result, BUN_UNSUPPORTED);
     }
-
+    if(result == BUN_OK) {
     printf("Asset %u\n", i);
     printf("Type: %u\n", r.type);
     printf("Size: %llu\n", (unsigned long long)r.data_size);
+    }
   }
 
-  return BUN_OK;
+  return result;
 }
 
 bun_result_t bun_close(BunParseContext *ctx) {
   int res = fclose(ctx->file);
-  if (res) {
-    return BUN_ERR_IO;
-  }
   ctx->file = NULL;
-  return BUN_OK;
+  return res ? BUN_ERR_IO : BUN_OK;
 }
