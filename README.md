@@ -1,9 +1,8 @@
-<<<<<<< HEAD
-# CITS3007-Project
-=======
-# BUN parser
+# BUN Parser (CITS3007 Project)
 
-(replace with your own content. The README.md serves as an introduction to
-users of your software. The URL of your version control repository would
-be a good thing to include.)
->>>>>>> 2c8f106 (initial commit)
+A C project for **CITS3007** that parses and validates `.bun` files.
+
+**Repository:** https://github.com/Farish-M/CITS3007-Project
+
+## Contributing
+See `CONTRIBUTING.md` for branch naming, commit message conventions, and the team workflow.
