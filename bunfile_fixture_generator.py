@@ -7,6 +7,8 @@ Provides functions for writing BUN headers and asset records to disk.
 When this script is called, runs an interactive dialogue to generate 
 valid or deliberately malformed BUN files for testing. 
 
+Compatible with Python 3.8 as per the CITS3007 SDE. 
+
 Script created with the help of OpenAI gpt-5.5 with codex.
 """
 
