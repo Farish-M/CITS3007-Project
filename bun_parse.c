@@ -385,6 +385,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
           if (c < 32 || c > 126) {
             add_error(ctx, "Non-printable asset name");
             result = worst_error(result, BUN_MALFORMED);
+            break;
           }
         }
       }
