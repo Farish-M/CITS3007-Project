@@ -19,26 +19,43 @@
 When parsing a valid file there will be at least 1 output, which is the bun header as displayed below
 
 **Bun Header**
+
 ------------ BUN Header ------------
+
 Magic:                magic
+
 Version:              version major.version minor
+
 Asset Count:          asset count
+
 Asset Table Offset:   asset table offset
+
 String Table Offset:  string table offset
+
 String Table Size:    string table size
+
 Data Section Offset:  data section offset
+
 Data Section Size:    data section size
 
 In the bun header we display the magic number, version major and minor, the amount of assets and offsets in the bun file, and the offset and size of the string table and data section.
 
 **Asset Table Display**
+
 ------------ Asset # ------------
+
 Name:                name
+
 Type:                type
+
 Size:                data size
+
 Uncompressed Size:   uncompressed size
+
 Compression:         compression
+
 Checksum:            checksum
+
 Flags:               flags
 
 For each asset table in the bun file we will display it's name, consisting of non-zero printable ASCII characters, type, size of asset in bytes, the size of the asset uncompressed, the checksum validation (typically CRC-32), and flags for the asset being encrypted or executable.
