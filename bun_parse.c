@@ -62,6 +62,11 @@ static int sectionsAligned(const BunHeader *header) {
           header->string_table_size % 4 == 0 &&
           header->data_section_size % 4 == 0);
 }
+
+static int is_printable_ascii(int c) {
+  // Printable ASCII characters are from 0x20 (space) to 0x7E (tilde)
+  return c >= 0x20 && c <= 0x7E;
+}
 //
 // API implementation
 //
@@ -385,7 +390,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
             result = worst_error(result, BUN_MALFORMED);
             break;
           }
-          if (c < 32 || c > 126) {
+          if (!is_printable_ascii(c)) {
             add_error(ctx, "Non-printable asset name");
             result = worst_error(result, BUN_MALFORMED);
             break;
@@ -457,7 +462,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
       }
       printf("\nPreview (ASCII):     ");
       for (size_t k = 0; k < read_bytes; k++) {
-        if (preview_buf[k] >= 0x20 && preview_buf[k] <= 0x7E) {
+        if (is_printable_ascii(preview_buf[k])) {
           printf("%c", preview_buf[k]);
         } else {
           printf(".");
