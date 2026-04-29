@@ -251,8 +251,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     result = worst_error(result, BUN_MALFORMED);
   }
 
-  u32 counttest = header->asset_count;
-
   u64 assetTableStart = header->asset_table_offset;
   u64 assetTableEnd =
       assetTableStart + (u64)header->asset_count * BUN_ASSET_RECORD_SIZE;
