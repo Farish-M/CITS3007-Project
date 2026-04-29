@@ -16,8 +16,17 @@ typedef struct {
   char *name_buf;
 } AssetNameMetadata;
 
+typedef struct {
+  u64 assetTableStart;
+  u64 assetTableEnd;
+  u64 stringTableStart;
+  u64 stringTableEnd;
+  u64 dataTableStart;
+  u64 dataTableEnd;
+} SectionRanges;
+
 static void add_error();
-static bun_result_t worst_error();
+static bun_result_t WorstErrors();
 static u32 read_u32_le();
 static u64 read_u64_le();
 static int isMagic();
@@ -27,6 +36,11 @@ static bun_result_t validate_rle_data();
 static bun_result_t AssetNameCheck();
 static bun_result_t OverlapCheck();
 static BunAssetRecord parse_asset_record();
+static SectionRanges InitSectionRanges();
+static bun_result_t BaseOffsetCalculate();
+static bun_result_t OffsetCheck();
+static bun_result_t EOFCheck();
+static bun_result_t ReadAssetEntries();
 
 
 /**
@@ -43,7 +57,7 @@ static void add_error(BunParseContext *ctx, const char *msg) {
 // Accumulates new results, and prioritise the "worst" error
 // Priority: BUN_ERROR_IO > BUN_MALFORMED > BUN_SUPPORTED
 // If no errors then BUN_OK
-static bun_result_t worst_error(bun_result_t current, bun_result_t incoming) {
+static bun_result_t WorstErrors(bun_result_t current, bun_result_t incoming) {
   if (incoming == BUN_ERR_IO || current == BUN_ERR_IO) {
     return BUN_ERR_IO;
   }
@@ -67,7 +81,7 @@ static u64 read_u64_le(const u8 *b, size_t o) {
          (u64)b[o + 6] << 48 | (u64)b[o + 7] << 56;
 }
 
-bun_result_t AllFileStatus= BUN_OK;
+bun_result_t Status= BUN_OK;
 
 static int isMagic(const BunHeader *header) {
   return header->magic == BUN_MAGIC;
@@ -123,13 +137,13 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   // exact validation problem that occurred?)
   if (ctx->file_size < (long)BUN_HEADER_SIZE) {
     add_error(ctx, "Truncated file");
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
+    Status= WorstErrors(Status, BUN_MALFORMED);
   }
 
   // slurp the header into `buf`
   if (fread(buf, 1, BUN_HEADER_SIZE, ctx->file) != BUN_HEADER_SIZE) {
     add_error(ctx, "Failed to read header");
-    AllFileStatus= worst_error(AllFileStatus, BUN_ERR_IO);
+    Status= WorstErrors(Status, BUN_ERR_IO);
   }
 
   // TODO: populate `header` from `buf`.
@@ -162,15 +176,15 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
 
   if (!isMagic(header)) {
     add_error(ctx, "Invalid magic number");
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
+    Status= WorstErrors(Status, BUN_MALFORMED);
   }
 
   if (!validVersion(header)) {
     add_error(ctx, "Invalid version");
-    AllFileStatus= worst_error(AllFileStatus, BUN_UNSUPPORTED);
+    Status= WorstErrors(Status, BUN_UNSUPPORTED);
   }
 
-  return AllFileStatus;
+  return Status;
 }
 
 /**
@@ -188,7 +202,7 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
   // RLE data must be an even amount of bytes
   if (r->data_size % 2 != 0) {
     add_error(ctx, "RLE data size is not even");
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
+    Status= WorstErrors(Status, BUN_MALFORMED);
   }
 
   // Save current file position to get back to later
@@ -197,11 +211,11 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
 
   if (saved_pos < 0) {
     add_error(ctx, "ftell failed before RLE validation");
-    AllFileStatus= worst_error(AllFileStatus, BUN_ERR_IO);
+    Status= WorstErrors(Status, BUN_ERR_IO);
   }
   if (fseek(ctx->file, data_start_abs, SEEK_SET) != 0) {
     add_error(ctx, "Failed to seek to RLE data");
-    AllFileStatus= worst_error(AllFileStatus, BUN_ERR_IO);
+    Status= WorstErrors(Status, BUN_ERR_IO);
   }
 
   // Getting the actual size of the data
@@ -214,7 +228,7 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
       add_error(ctx, "Unexpected EOF in RLE data");
       // Cleaning up
       fseek(ctx->file, saved_pos, SEEK_SET);
-      AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
+      Status= WorstErrors(Status, BUN_MALFORMED);
       break;
     }
 
@@ -222,13 +236,13 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
     if (count == 0) {
       add_error(ctx, "RLE pair has zero count");
       fseek(ctx->file, saved_pos, SEEK_SET);
-      AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
+      Status= WorstErrors(Status, BUN_MALFORMED);
     }
 
     total_expanded += (unsigned char)count;
     if (total_expanded > r->uncompressed_size) {
       add_error(ctx, "RLE data is bigger than specified uncompressed_size");
-      AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
+      Status= WorstErrors(Status, BUN_MALFORMED);
     }
   }
 
@@ -236,7 +250,7 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
   if (total_expanded != r->uncompressed_size) {
     add_error(ctx, "RLE expanded size mismatch");
     fseek(ctx->file, saved_pos, SEEK_SET);
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
+    Status= WorstErrors(Status, BUN_MALFORMED);
   }
 
   // Restore original file position
@@ -292,27 +306,63 @@ static bun_result_t AssetNameCheck(AssetNameMetadata *meta) {
   return BUN_OK;
 }
 
-static bun_result_t OverlapCheck(BunParseContext *ctx,
-                                 u64 assetTableStart, u64 assetTableEnd,
-                                 u64 stringTableStart, u64 stringTableEnd,
-                                 u64 dataTableStart, u64 dataTableEnd) {
+static bun_result_t OverlapCheck(BunParseContext *ctx, const SectionRanges *r) {
   bun_result_t status = BUN_OK;
 
-  if (assetTableEnd > stringTableStart && assetTableStart < stringTableEnd) {
+  if (r->assetTableEnd > r->stringTableStart && r->assetTableStart < r->stringTableEnd) {
     add_error(ctx, "Asset and string table overlap");
-    status = worst_error(status, BUN_MALFORMED);
+    status = WorstErrors(status, BUN_MALFORMED);
   }
 
-  if (assetTableEnd > dataTableStart && assetTableStart < dataTableEnd) {
+  if (r->assetTableEnd > r->dataTableStart && r->assetTableStart < r->dataTableEnd) {
     add_error(ctx, "Asset and data section overlap");
-    status = worst_error(status, BUN_MALFORMED);
+    status = WorstErrors(status, BUN_MALFORMED);
   }
 
-  if (stringTableEnd > dataTableStart && stringTableStart < dataTableEnd) {
+  if (r->stringTableEnd > r->dataTableStart && r->stringTableStart < r->dataTableEnd) {
     add_error(ctx, "String and data section overlap");
-    status = worst_error(status, BUN_MALFORMED);
+    status = WorstErrors(status, BUN_MALFORMED);
   }
 
+  return status;
+}
+
+static SectionRanges InitSectionRanges(const BunHeader *header) {
+  u64 assetTableStart = header->asset_table_offset;
+  return (SectionRanges){
+      .assetTableStart  = assetTableStart,
+      .assetTableEnd    = assetTableStart + (u64)header->asset_count * BUN_ASSET_RECORD_SIZE,
+      .stringTableStart = header->string_table_offset,
+      .stringTableEnd   = header->string_table_offset + header->string_table_size,
+      .dataTableStart   = header->data_section_offset,
+      .dataTableEnd     = header->data_section_offset + header->data_section_size,
+  };
+}
+
+static bun_result_t BaseOffsetCalculate(BunParseContext *ctx, u64 offset, u64 file_size,
+                                const char *msg) {
+  if (offset > file_size) {
+    add_error(ctx, msg);
+    return BUN_MALFORMED;
+  }
+  return BUN_OK;
+}
+
+static bun_result_t OffsetCheck(BunParseContext *ctx, const BunHeader *header,
+                                u64 file_size) {
+  bun_result_t status = BUN_OK;
+  status = WorstErrors(status, BaseOffsetCalculate(ctx, header->asset_table_offset,  file_size, "Invalid asset table offset"));
+  status = WorstErrors(status, BaseOffsetCalculate(ctx, header->data_section_offset, file_size, "Invalid data section offset"));
+  status = WorstErrors(status, BaseOffsetCalculate(ctx, header->string_table_offset, file_size, "Invalid string table offset"));
+  return status;
+}
+
+static bun_result_t EOFCheck(BunParseContext *ctx, const SectionRanges *r,
+                             u64 file_size) {
+  bun_result_t status = BUN_OK;
+  status = WorstErrors(status, BaseOffsetCalculate(ctx, r->assetTableEnd,  file_size, "Asset entry table exceeds EOF"));
+  status = WorstErrors(status, BaseOffsetCalculate(ctx, r->stringTableEnd, file_size, "String table exceeds EOF"));
+  status = WorstErrors(status, BaseOffsetCalculate(ctx, r->dataTableEnd,   file_size, "Data section exceeds EOF"));
   return status;
 }
 
@@ -331,73 +381,9 @@ static BunAssetRecord parse_asset_record(const u8 *buf) {
   return r;
 }
 
-bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
-  bun_result_t AllFileStatus= BUN_OK;
-  u64 file_size = (u64)ctx->file_size;
-
-  // TODO: implement asset record parsing and validation
-  if (!sectionsAligned(header)) {
-    add_error(ctx, "Misaligned section offset or size");
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
-  }
-
-  if (fseek(ctx->file, header->asset_table_offset, SEEK_SET) != 0) {
-    add_error(ctx, "Failed to seek asset table");
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
-  }
-
-  if (header->asset_table_offset > (u64)ctx->file_size) {
-    add_error(ctx, "Invalid asset table offset");
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
-  }
-
-  if (header->data_section_offset > (u64)ctx->file_size) {
-    add_error(ctx, "Invalid data section offset");
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
-  }
-
-  if (header->string_table_offset > (u64)ctx->file_size) {
-    add_error(ctx, "Invalid string table offset");
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
-  }
-
-  u32 counttest = header->asset_count;
-  fprintf(stderr, "[DEBUG] asset_count=%" PRIu32 "\n", counttest);
-
-  u64 assetTableStart = header->asset_table_offset;
-  u64 assetTableEnd =
-      assetTableStart + (u64)header->asset_count * BUN_ASSET_RECORD_SIZE;
-
-  u64 stringTableStart = header->string_table_offset;
-  u64 stringTableEnd = stringTableStart + header->string_table_size;
-
-  u64 dataTableStart = header->data_section_offset;
-  u64 dataTableEnd = dataTableStart + header->data_section_size;
-
-  if (assetTableEnd > file_size) {
-    add_error(ctx, "Asset entry table exceeds EOF");
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
-  }
-
-  if (stringTableEnd > file_size) {
-    add_error(ctx, "String table exceeds EOF");
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
-  }
-
-  if (dataTableEnd > file_size) {
-    add_error(ctx, "Data section exceeds EOF");
-    AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
-  }
-
-  AllFileStatus = worst_error(AllFileStatus, OverlapCheck(ctx,
-      assetTableStart, assetTableEnd,
-      stringTableStart, stringTableEnd,
-      dataTableStart, dataTableEnd));
-
-  if (fseek(ctx->file, (long)assetTableStart, SEEK_SET) != 0) {
-    add_error(ctx, "Failed to seek asset table");
-    AllFileStatus= worst_error(AllFileStatus, BUN_ERR_IO);
-  }
+static bun_result_t ReadAssetEntries(BunParseContext *ctx, const BunHeader *header,
+                                     u64 assetTableStart) {
+  bun_result_t status = BUN_OK;
 
   for (u32 i = 0; i < header->asset_count; i++) {
     u8 buf[BUN_ASSET_RECORD_SIZE];
@@ -423,33 +409,31 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
         .string_table_size = header->string_table_size,
         .name_buf = name,
     };
-    
-    AllFileStatus= worst_error(AllFileStatus, AssetNameCheck(&name_meta));
+
+    status = WorstErrors(status, AssetNameCheck(&name_meta));
 
     if (fseek(ctx->file, next_record_pos, SEEK_SET) != 0) {
       add_error(ctx, "Failed to seek asset table for next record");
-      return worst_error(AllFileStatus, BUN_ERR_IO);
+      return WorstErrors(status, BUN_ERR_IO);
     }
 
     if (AssetContent.data_offset + AssetContent.data_size >
         header->data_section_size) {
       add_error(ctx, "Asset data out of bounds");
-      AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
+      status = WorstErrors(status, BUN_MALFORMED);
     }
 
     // Compression checks
     if (AssetContent.compression == 1) {
-      // We use &AssetContent here because validate_rle_data needs a pointer
       bun_result_t rle_res = validate_rle_data(ctx, header, &AssetContent);
       if (rle_res != BUN_OK) {
         return rle_res;
       }
     } else if (AssetContent.compression == 0 &&
                AssetContent.uncompressed_size != 0) {
-      add_error(
-          ctx,
-          "Can't have non-zero uncompressed size for an uncompressed asset");
-      AllFileStatus= worst_error(AllFileStatus, BUN_MALFORMED);
+      add_error(ctx,
+                "Can't have non-zero uncompressed size for an uncompressed asset");
+      status = WorstErrors(status, BUN_MALFORMED);
     }
 
     printf("------------ Asset %u ------------\n", i);
@@ -464,7 +448,42 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     printf("Flags:               0x%08X\n\n", AssetContent.flags);
   }
 
-  return AllFileStatus;
+  return status;
+}
+
+bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
+  bun_result_t Status= BUN_OK;
+  u64 file_size = (u64)ctx->file_size;
+
+  // TODO: implement asset record parsing and validation
+  if (!sectionsAligned(header)) {
+    add_error(ctx, "Misaligned section offset or size");
+    Status= WorstErrors(Status, BUN_MALFORMED);
+  }
+
+  if (fseek(ctx->file, header->asset_table_offset, SEEK_SET) != 0) {
+    add_error(ctx, "Failed to seek asset table");
+    Status= WorstErrors(Status, BUN_MALFORMED);
+  }
+
+  Status = WorstErrors(Status, OffsetCheck(ctx, header, file_size));
+
+  u32 counttest = header->asset_count;
+  fprintf(stderr, "[DEBUG] asset_count=%" PRIu32 "\n", counttest);
+
+  SectionRanges sr = InitSectionRanges(header);
+  u64 assetTableStart = sr.assetTableStart;
+
+  Status = WorstErrors(Status, EOFCheck(ctx, &sr, file_size));
+  Status = WorstErrors(Status, OverlapCheck(ctx, &sr));
+
+  if (fseek(ctx->file, (long)assetTableStart, SEEK_SET) != 0) {
+    add_error(ctx, "Failed to seek asset table");
+    Status = WorstErrors(Status, BUN_ERR_IO);
+  }
+
+  Status = WorstErrors(Status, ReadAssetEntries(ctx, header, assetTableStart));
+  return Status;
 }
 
 bun_result_t bun_close(BunParseContext *ctx) {
