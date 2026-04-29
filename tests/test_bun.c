@@ -86,6 +86,81 @@ START_TEST(test_unsupported_version) {
 }
 END_TEST
 
+// Additional test cases for asset parsing
+
+START_TEST(test_valid_one_asset) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("valid/03-one-asset.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);
+    ck_assert_uint_eq(header.asset_count, 1);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);
+    ck_assert_int_eq(ctx.error_count, 0);
+
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_valid_rle) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("valid/06-rle-valid.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);
+    ck_assert_int_eq(ctx.error_count, 0);
+
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_invalid_rle_zero_count) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/14-rle-zero-count.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+    ck_assert_int_gt(ctx.error_count, 0);
+
+    bun_close(&ctx);
+}
+END_TEST
+
+START_TEST(test_overlapping_sections) {
+    BunParseContext ctx = {0};
+    BunHeader header    = {0};
+
+    bun_result_t r = bun_open(fixture("invalid/05-overlapping-sections.bun"), &ctx);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_header(&ctx, &header);
+    ck_assert_int_eq(r, BUN_OK);
+
+    r = bun_parse_assets(&ctx, &header);
+    ck_assert_int_eq(r, BUN_MALFORMED);
+    ck_assert_int_gt(ctx.error_count, 0);
+
+    bun_close(&ctx);
+}
+END_TEST
+
 // Assemble a test suite from our tests
 
 static Suite *bun_suite(void) {
@@ -98,7 +173,12 @@ static Suite *bun_suite(void) {
     tcase_add_test(tc_header, test_unsupported_version);
     suite_add_tcase(s, tc_header);
 
-    // TODO: add further test cases and TCases (e.g. "assets", "compression")
+    TCase *tc_assets = tcase_create("asset-tests");
+    tcase_add_test(tc_assets, test_valid_one_asset);
+    tcase_add_test(tc_assets, test_valid_rle);
+    tcase_add_test(tc_assets, test_invalid_rle_zero_count);
+    tcase_add_test(tc_assets, test_overlapping_sections);
+    suite_add_tcase(s, tc_assets);
 
     return s;
 }
