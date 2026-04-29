@@ -192,6 +192,7 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
       // Cleaning up
       fseek(ctx->file, saved_pos, SEEK_SET);
       result = worst_error(result, BUN_MALFORMED);
+      break;
     }
 
     // A count of zero is a spec violation
@@ -264,17 +265,17 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   u64 dataTableEnd = dataTableStart + header->data_section_size;
 
   if (assetTableEnd > file_size) {
-    add_error(ctx, "Asset entry table exceeds boundaries");
+    add_error(ctx, "Asset entry table exceeds EOF");
     result = worst_error(result, BUN_MALFORMED);
   }
 
   if (stringTableEnd > file_size) {
-    add_error(ctx, "String table exceeds boundaries");
+    add_error(ctx, "String table exceeds EOF");
     result = worst_error(result, BUN_MALFORMED);
   }
 
   if (dataTableEnd > file_size) {
-    add_error(ctx, "Data section exceeds boundaries");
+    add_error(ctx, "Data section exceeds EOF");
     result = worst_error(result, BUN_MALFORMED);
   }
 
@@ -344,7 +345,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     o += 4;
     AssetContent.flags = read_u32_le(buf, o);
 
-    char name[256];
+    char name[256] = "<no name>";
     int name_ok = 1;
 
     if (AssetContent.name_length == 0) {
