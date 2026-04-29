@@ -290,20 +290,18 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
             "[DEBUG] dataTableStart=%" PRIu64 " dataTableEnd=%" PRIu64 "\n",
             dataTableStart, dataTableEnd);
 
-    if (assetTableEnd > stringTableStart && assetTableStart < stringTableEnd) {
-      add_error(ctx, "Asset and string table overlap");
-      result = worst_error(result, BUN_MALFORMED);
-    }
+    add_error(ctx, "Asset and string table overlap");
+    result = worst_error(result, BUN_MALFORMED);
+  }
 
-    if (assetTableEnd > dataTableStart && assetTableStart < dataTableEnd) {
-      add_error(ctx, "Asset and data section overlap");
-      result = worst_error(result, BUN_MALFORMED);
-    }
+  if (assetTableEnd > dataTableStart && assetTableStart < dataTableEnd) {
+    add_error(ctx, "Asset and data section overlap");
+    result = worst_error(result, BUN_MALFORMED);
+  }
 
-    if (stringTableEnd > dataTableStart && stringTableStart < dataTableEnd) {
-      add_error(ctx, "String and data section overlap");
-      result = worst_error(result, BUN_MALFORMED);
-    }
+  if (stringTableEnd > dataTableStart && stringTableStart < dataTableEnd) {
+    add_error(ctx, "String and data section overlap");
+    result = worst_error(result, BUN_MALFORMED);
   }
 
   if (fseek(ctx->file, (long)assetTableStart, SEEK_SET) != 0) {
@@ -361,30 +359,35 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
       name_ok = 0;
     }
     if (name_ok) {
-      if (AssetContent.name_length > 255) {
-        add_error(ctx, "Asset name too large for buffer");
+      u64 name_start_abs =
+          header->string_table_offset + AssetContent.name_offset;
+      if (fseek(ctx->file, name_start_abs, SEEK_SET) != 0) {
+        add_error(ctx, "Failed to seek to asset name");
         result = worst_error(result, BUN_MALFORMED);
         name_ok = 0;
-      } else {
-        u64 name_start_abs =
-            header->string_table_offset + AssetContent.name_offset;
+      }
 
-        if (fseek(ctx->file, name_start_abs, SEEK_SET) != 0) {
-          add_error(ctx, "Failed to seek to asset name");
-          result = worst_error(result, BUN_MALFORMED);
-        }
-
-        if (fread(name, 1, AssetContent.name_length, ctx->file) !=
-            AssetContent.name_length) {
+      if (name_ok) {
+        u32 read_len =
+            AssetContent.name_length < 255 ? AssetContent.name_length : 255;
+        if (fread(name, 1, read_len, ctx->file) != read_len) {
           add_error(ctx, "Failed to read asset name");
           result = worst_error(result, BUN_MALFORMED);
           name_ok = 0;
         } else {
-          name[AssetContent.name_length] = '\0';
+          name[read_len] = '\0';
         }
+      }
 
+      if (name_ok) {
+        fseek(ctx->file, name_start_abs, SEEK_SET);
         for (u32 j = 0; j < AssetContent.name_length; j++) {
-          unsigned char c = name[j];
+          int c = fgetc(ctx->file);
+          if (c == EOF) {
+            add_error(ctx, "Unexpected EOF in asset name");
+            result = worst_error(result, BUN_MALFORMED);
+            break;
+          }
           if (c < 32 || c > 126) {
             add_error(ctx, "Non-printable asset name");
             result = worst_error(result, BUN_MALFORMED);
@@ -415,6 +418,12 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
       add_error(
           ctx,
           "Can't have non-zero uncompressed size for an uncompressed asset");
+      result = worst_error(result, BUN_MALFORMED);
+    } else if (AssetContent.compression == 2) {
+      add_error(ctx, "zlib compression is not supported");
+      result = worst_error(result, BUN_UNSUPPORTED);
+    } else if (AssetContent.compression > 2) {
+      add_error(ctx, "Unknown compression type");
       result = worst_error(result, BUN_MALFORMED);
     }
 
