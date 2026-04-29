@@ -162,6 +162,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
 static bun_result_t validate_rle_data(BunParseContext *ctx,
                                       const BunHeader *header,
                                       const BunAssetRecord *r) {
+  bun_result_t result = BUN_OK;
   // RLE data must be an even amount of bytes
   if (r->data_size % 2 != 0) {
     add_error(ctx, "RLE data size is not even");
@@ -198,7 +199,6 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
     // A count of zero is a spec violation
     if (count == 0) {
       add_error(ctx, "RLE pair has zero count");
-      fseek(ctx->file, saved_pos, SEEK_SET);
       result = worst_error(result, BUN_MALFORMED);
     }
 
@@ -218,7 +218,7 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
 
   // Restore original file position
   fseek(ctx->file, saved_pos, SEEK_SET);
-  return BUN_OK;
+  return result;
 }
 
 bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
@@ -379,8 +379,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
           add_error(ctx, "Failed to read asset name");
           result = worst_error(result, BUN_MALFORMED);
           name_ok = 0;
-        }
-        else{
+        } else {
           name[AssetContent.name_length] = '\0';
         }
 
@@ -410,9 +409,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     if (AssetContent.compression == 1) {
       // We use &AssetContent here because validate_rle_data needs a pointer
       bun_result_t rle_res = validate_rle_data(ctx, header, &AssetContent);
-      if (rle_res != BUN_OK) {
-        return rle_res;
-      }
+      result = worst_error(result, rle_res);
     } else if (AssetContent.compression == 0 &&
                AssetContent.uncompressed_size != 0) {
       add_error(
