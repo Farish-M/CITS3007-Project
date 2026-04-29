@@ -252,7 +252,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   }
 
   u32 counttest = header->asset_count;
-  fprintf(stderr, "[DEBUG] asset_count=%" PRIu32 "\n", counttest);
 
   u64 assetTableStart = header->asset_table_offset;
   u64 assetTableEnd =
