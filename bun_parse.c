@@ -380,6 +380,9 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
           result = worst_error(result, BUN_MALFORMED);
           name_ok = 0;
         }
+        else{
+          name[AssetContent.name_length] = '\0';
+        }
 
         for (u32 j = 0; j < AssetContent.name_length; j++) {
           unsigned char c = name[j];
@@ -416,6 +419,16 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
           ctx,
           "Can't have non-zero uncompressed size for an uncompressed asset");
       result = worst_error(result, BUN_MALFORMED);
+    }
+
+    if (AssetContent.checksum != 0) {
+      add_error(ctx, "CRC-32 checksum validation is not supported");
+      result = worst_error(result, BUN_UNSUPPORTED);
+    }
+
+    if (AssetContent.flags & ~(BUN_FLAG_ENCRYPTED | BUN_FLAG_EXECUTABLE)) {
+      add_error(ctx, "Asset flags field contains unknown bits");
+      result = worst_error(result, BUN_UNSUPPORTED);
     }
 
     printf("------------ Asset %u ------------\n", i);
