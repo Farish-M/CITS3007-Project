@@ -72,12 +72,17 @@ As the parser runs through the BUN file it accumulates errors, once finished/ter
 *Are there any ambiguities in the BUN specification that required you to make a judgement call?*
 *If so, what did you decide, and why?*
 
-[Your answer here]
+In response to issue #6, "RLE zero-count asset reports no error", we decided that malformed RLE data should cause parsing to fail. RLE payloads are made of count/value integer pairs and a zero-count for one or more pairs means that there are integer pairs which do not contribute to the decompressed output but are still included in the compressed input. This indicates malformed compressed data. 
+The parser may still be able to read the asset record and display metadata such as the asset name, size, and compression type. However, once the RLE payload fails validation, the asset should not be treated as valid. Therefore we report the malformed RLE data and return an error instead of accepting the file.
 
 ## 3. Libraries Used
 *List any third-party libraries your executable depends on and briefly describe their purpose.*
 
-[Your answer here]
+The main `bun_parser` executable does not depend on any third-party libraries. It is built from `main.c` and `bun_parse.c`, and only uses standard C library headers such as `stdio.h`, `stdlib.h`, `stdint.h`, `inttypes.h`, `string.h`, and `assert.h`.
+
+The `tests/test_runner` executable depends on the third-party Check unit testing framework. This is included through `#include <check.h>` in `tests/test_bun.c`, and the Makefile links it using `pkg-config --cflags --libs check`. Check provides the test suite, test case, assertion, and test runner APIs used by the unit tests, such as `START_TEST`, `ck_assert_int_eq`, `suite_create`, `tcase_add_test`, and `srunner_run_all`. This dependency is only required for building and running the test executable, not by the main parser. 
+
+The Python scripts do not use third-party Python packages. They only use Python standard library modules
 
 ## 4. Tools Used
 *Describe what tools - such as static analysers or dynamic analysis tools like the Google Sanitizers (AddressSanitizer, UndefinedBehaviorSanitizer, etc.) or other practices you used to improve the safety and security of your code.*
