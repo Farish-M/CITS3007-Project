@@ -16,7 +16,7 @@
 *Document the codes you use in your report.*
 
 ### Valid Files
-When parsing a valid file the following output will be displayed
+When parsing a valid file there will be at least 1 output, which is the bun header as displayed below
 
 **Bun Header**
 ------------ BUN Header ------------
@@ -29,8 +29,10 @@ String Table Size:    string table size
 Data Section Offset:  data section offset
 Data Section Size:    data section size
 
+In the bun header we display the magic number, version major and minor, the amount of assets and offsets in the bun file, and the offset and size of the string table and data section.
+
 **Asset Table Display**
------------- Asset ------------
+------------ Asset # ------------
 Name:                name
 Type:                type
 Size:                data size
@@ -39,7 +41,12 @@ Compression:         compression
 Checksum:            checksum
 Flags:               flags
 
+For each asset table in the bun file we will display it's name, consisting of non-zero printable ASCII characters, type, size of asset in bytes, the size of the asset uncompressed, the checksum validation (typically CRC-32), and flags for the asset being encrypted or executable.
+
 ### Invalid Files
+When parsing an invalid file, the parser will attempt to display as much of the file as it can safely and sensibly output. Followed by error messages displaying the cause of the error, i.e. "Asset and data section overlap"
+
+As the parser runs through the BUN file it accumulates errors, once finished/terminated it was display each error that encountered (1 per line).
 
 ## 2. Decisions and Assumptions
 *Describe any decisions or assumptions you made while implementing the parser.*
