@@ -87,7 +87,7 @@ The Python scripts do not use third-party Python packages. They only use Python 
 ## 4. Tools Used
 ### GCC Compiler Warnings (`-Wall -Wextra -Wpedantic`)
 We utilized strict GCC compiler warnings as a form of static analysis to catch potential bugs and code quality issues during compilation. 
-*   **Evidence:** The compiler flagged a warning: `bun_parse.c:254:7: warning: unused variable 'counttest' [-Wunused-variable]`. We removed this unused variable to maintain the code clean. The commit hash before the fix: `e1aca9e`; the commit hash after the fix: `587e661`.
+*   **Evidence:** The compiler flagged a warning: `bun_parse.c:254:7: warning: unused variable 'counttest' [-Wunused-variable]`. We removed this unused variable to keep the code clean. The commit hash before the fix: `e1aca9e`; the commit hash after the fix: `587e661`.
 
 ### Clang-Format
 We used `clang-format` to enforce consistent code styling across the codebase. This prevented syntax formatting issues and merge conflicts during development.
@@ -95,7 +95,7 @@ We used `clang-format` to enforce consistent code styling across the codebase. T
 
 ### Libcheck (Unit Testing)
 We used `libcheck` as the unit testing framework to verify our parser against both valid and invalid BUN sample files.
-*   **Evidence:** `feature/tests` branch has a commit (`331833a`), that adds unit tests sections executed via running `make test`. It verifies that the parser is handling such cases as RLE zero-count payloads and section overlaps correctly.
+*   **Evidence:** `feature/tests` branch has a commit (`331833a`) that adds unit tests executed via running `make test`. It verifies that the parser is handling cases such as RLE zero-count payloads and section overlaps correctly.
 
 ## 5. Security Aspects
 *Your management has proposed deploying your parser in the client for Trinity's new game, Brutal Orc Battles In Space a large-scale science fiction MMORPG.* [cite: 130] *In this deployment, the game client would automatically download, from Trinity's servers, BUN files that describe new galaxy regions and player-created content, and pass them to your parser.*
