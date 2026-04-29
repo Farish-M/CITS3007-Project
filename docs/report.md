@@ -15,7 +15,31 @@
 *Document the human-readable output format produced by your parser for both valid and invalid files, and the exit codes used for non-BUN-OK outcomes.*
 *Document the codes you use in your report.*
 
-[Your answer here]
+### Valid Files
+When parsing a valid file the following output will be displayed
+
+**Bun Header**
+------------ BUN Header ------------
+Magic:                magic
+Version:              version major.version minor
+Asset Count:          asset count
+Asset Table Offset:   asset table offset
+String Table Offset:  string table offset
+String Table Size:    string table size
+Data Section Offset:  data section offset
+Data Section Size:    data section size
+
+**Asset Table Display**
+------------ Asset ------------
+Name:                name
+Type:                type
+Size:                data size
+Uncompressed Size:   uncompressed size
+Compression:         compression
+Checksum:            checksum
+Flags:               flags
+
+### Invalid Files
 
 ## 2. Decisions and Assumptions
 *Describe any decisions or assumptions you made while implementing the parser.*
