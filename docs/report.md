@@ -85,11 +85,17 @@ The `tests/test_runner` executable depends on the third-party Check unit testing
 The Python scripts do not use third-party Python packages. They only use Python standard library modules
 
 ## 4. Tools Used
-*Describe what tools - such as static analysers or dynamic analysis tools like the Google Sanitizers (AddressSanitizer, UndefinedBehaviorSanitizer, etc.) or other practices you used to improve the safety and security of your code.*
-*For each tool, you must provide concrete evidence of its use- for example, a link to GitHub issue and corresponding commit in your repository, showing code that was changed as a result of a tool's findings.*
-*State what the tool's findings were and how it was run; a marker should be able to reproduce them by running the tool on an unfixed commit.*
+### GCC Compiler Warnings (`-Wall -Wextra -Wpedantic`)
+We utilized strict GCC compiler warnings as a form of static analysis to catch potential bugs and code quality issues during compilation. 
+*   **Evidence:** The compiler flagged a warning: `bun_parse.c:254:7: warning: unused variable 'counttest' [-Wunused-variable]`. We removed this unused variable to maintain the code clean. The commit hash before the fix: `e1aca9e`; the commit hash after the fix: `587e661`.
 
-[Your answer here]
+### Clang-Format
+We used `clang-format` to enforce consistent code styling across the codebase. This prevented syntax formatting issues and merge conflicts during development.
+*   **Evidence:** We added a `format` target to our `Makefile` and formatted the codebase in commit `698f488` (`chore: format code, add format to Makefile`). This can be reproduced by running `make format` on any unfixed commit.
+
+### Libcheck (Unit Testing)
+We used `libcheck` as the unit testing framework to verify our parser against both valid and invalid BUN sample files.
+*   **Evidence:** `feature/tests` branch has a commit (`331833a`), that adds unit tests sections executed via running `make test`. It verifies that the parser is handling such cases as RLE zero-count payloads and section overlaps correctly.
 
 ## 5. Security Aspects
 *Your management has proposed deploying your parser in the client for Trinity's new game, Brutal Orc Battles In Space a large-scale science fiction MMORPG.* [cite: 130] *In this deployment, the game client would automatically download, from Trinity's servers, BUN files that describe new galaxy regions and player-created content, and pass them to your parser.*
