@@ -100,13 +100,13 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   // exact validation problem that occurred?)
   if (ctx->file_size < (long)BUN_HEADER_SIZE) {
     add_error(ctx, "Truncated file");
-    return BUN_MALFORMED;
+    result = worst_error(result, BUN_MALFORMED);
   }
 
   // slurp the header into `buf`
   if (fread(buf, 1, BUN_HEADER_SIZE, ctx->file) != BUN_HEADER_SIZE) {
     add_error(ctx, "Failed to read header");
-    return BUN_ERR_IO;
+    result = worst_error(result, BUN_ERR_IO);
   }
 
   // TODO: populate `header` from `buf`.
@@ -165,7 +165,7 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
   // RLE data must be an even amount of bytes
   if (r->data_size % 2 != 0) {
     add_error(ctx, "RLE data size is not even");
-    return BUN_MALFORMED;
+    result = worst_error(result, BUN_MALFORMED);
   }
 
   // Save current file position to get back to later
@@ -174,11 +174,11 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
 
   if (saved_pos < 0) {
     add_error(ctx, "ftell failed before RLE validation");
-    return BUN_ERR_IO;
+    result = worst_error(result, BUN_ERR_IO);
   }
   if (fseek(ctx->file, data_start_abs, SEEK_SET) != 0) {
     add_error(ctx, "Failed to seek to RLE data");
-    return BUN_ERR_IO;
+    result = worst_error(result, BUN_ERR_IO);
   }
 
   // Getting the actual size of the data
@@ -191,20 +191,20 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
       add_error(ctx, "Unexpected EOF in RLE data");
       // Cleaning up
       fseek(ctx->file, saved_pos, SEEK_SET);
-      return BUN_MALFORMED;
+      result = worst_error(result, BUN_MALFORMED);
     }
 
     // A count of zero is a spec violation
     if (count == 0) {
       add_error(ctx, "RLE pair has zero count");
       fseek(ctx->file, saved_pos, SEEK_SET);
-      return BUN_MALFORMED;
+      result = worst_error(result, BUN_MALFORMED);
     }
 
     total_expanded += (unsigned char)count;
     if (total_expanded > r->uncompressed_size) {
       add_error(ctx, "RLE data is bigger than specified uncompressed_size");
-      return BUN_MALFORMED;
+      result = worst_error(result, BUN_MALFORMED);
     }
   }
 
@@ -212,7 +212,7 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
   if (total_expanded != r->uncompressed_size) {
     add_error(ctx, "RLE expanded size mismatch");
     fseek(ctx->file, saved_pos, SEEK_SET);
-    return BUN_MALFORMED;
+    result = worst_error(result, BUN_MALFORMED);
   }
 
   // Restore original file position
