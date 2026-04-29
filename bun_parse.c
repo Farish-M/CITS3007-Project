@@ -446,7 +446,30 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
            (unsigned long long)AssetContent.uncompressed_size);
     printf("Compression:         %u\n", AssetContent.compression);
     printf("Checksum:            0x%08X\n", AssetContent.checksum);
-    printf("Flags:               0x%08X\n\n", AssetContent.flags);
+    printf("Flags:               0x%08X\n", AssetContent.flags);
+
+    printf("Preview (Hex):       ");
+    if (fseek(ctx->file, header->data_section_offset + AssetContent.data_offset,
+              SEEK_SET) == 0) {
+      u8 preview_buf[16];
+      size_t to_read =
+          AssetContent.data_size < 16 ? AssetContent.data_size : 16;
+      size_t read_bytes = fread(preview_buf, 1, to_read, ctx->file);
+      for (size_t k = 0; k < read_bytes; k++) {
+        printf("%02X ", preview_buf[k]);
+      }
+      printf("\nPreview (ASCII):     ");
+      for (size_t k = 0; k < read_bytes; k++) {
+        if (preview_buf[k] >= 0x20 && preview_buf[k] <= 0x7E) {
+          printf("%c", preview_buf[k]);
+        } else {
+          printf(".");
+        }
+      }
+      if (AssetContent.data_size > 16)
+        printf("...");
+    }
+    printf("\n\n");
   }
 
   return result;
