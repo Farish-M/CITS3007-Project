@@ -169,6 +169,8 @@ When deployed, the parser should be ran in a separate process with restricted OS
 
 ## 6. Coding Standards
 
+*Describe any coding standards or conventions your group adopted (for example, naming conventions, code formatting, or rules around pointer arithmetic and memory management).*
+
 ### C Source Code Formatting
 
 For C source formatting, the project adopted `clang-format`. This was added in the formatting commit [`698f488`](https://github.com/Farish-M/CITS3007-Project/commit/698f4884c1330540a883b1991344e1d03b9ea15b) and connected to the build process through the `format` target in the `Makefile`. The project is compiled with `gcc` using `-std=c11 -Wall -Wextra -Wpedantic`, so code is expected to remain C11-compatible and free of common compiler warnings. The formatter uses an LLVM-based style with an 80-column limit, attached braces, and consistent indentation.
