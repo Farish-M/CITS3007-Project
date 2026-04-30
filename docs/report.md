@@ -182,7 +182,11 @@ The project used a feature-branch workflow, as described in `CONTRIBUTING.md`. N
 ## 7. Challenges
 *Describe any challenges - technical or logistical - your group encountered during the project, and how you addressed them (or, if you were unable to, what the impact was).*
 
-[Your answer here]
+**Error accumulation vs early termination**
+Deciding when to stop parsing as opposed to collecting more errors, was one of the main technical challenges we had encountered. Some faults, such as `fseek`, made continuing redundant; whilst other errors, like a bad asset name or overlaps, were safe to report and continue parsing. The way we address this was through `worst_error()` and `add_error()`, which accumulates results rather than returning immediately. There was also the consideration of which errors should be returned immedaitely and which shouldn't.
+
+**Global vs local state**
+A bug had arose during the later stages of development through `result` being unintentionally kept as a global variable rather than local to functions. This oversight produced misleading errors to be displayed, this was because errors from `bun_parse_header()` was bleeding into `bun_parse_assets()`. The solution to this was to trace the various locations where `result` was being written to.
 
 ## 8. Academic Conduct and GenAI Usage
 *You may use genAI tools to assist in coming up with ideas, or generating code - but all content must be reviewed by members of the group, and you must note (in your report, or your code) where you have used it.*
