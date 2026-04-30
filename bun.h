@@ -12,9 +12,13 @@ typedef enum {
   BUN_OK = 0,
   BUN_MALFORMED = 1,
   BUN_UNSUPPORTED = 2,
-  BUN_ERR_IO = 3, /* I/O error or file not found -- you may define
-                     additional codes in the range 3-10 as needed;
-                     document them in your report */
+  BUN_ERR_IO = 3,
+  // Addtional status codes was suggested by Claude (Anthropic, 2025)
+  BUN_ERR_TRUNCATED = 4,
+  BUN_ERR_OVERFLOW = 5,
+  BUN_ERR_SECURITY = 6,
+  BUN_ERR_CORRUPT = 7,
+
 } bun_result_t;
 
 //

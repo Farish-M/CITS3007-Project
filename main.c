@@ -12,8 +12,49 @@ static int map_exit_code(bun_result_t r) {
     return 1;
   case BUN_UNSUPPORTED:
     return 2;
-  default:
+  case BUN_ERR_IO:
     return 3;
+  case BUN_ERR_TRUNCATED:
+    return 4;
+  case BUN_ERR_OVERFLOW:
+    return 5;
+  case BUN_ERR_SECURITY:
+    return 6;
+  case BUN_ERR_CORRUPT:
+    return 7;
+  default:
+    // Default returns 3 as any unknown error code is an unexpected internal
+    // problem
+    return 3;
+  }
+}
+
+static void print_result_code(bun_result_t r) {
+  switch (r) {
+  case BUN_MALFORMED:
+    fprintf(stderr, "Exit with status code 1 (BUN_MALFORMED)\n");
+    break;
+  case BUN_UNSUPPORTED:
+    fprintf(stderr, "Exit with status code 2 (BUN_SUPPORTED)\n");
+    break;
+  case BUN_ERR_IO:
+    fprintf(stderr, "Exit with status code 3 (BUN_ERR_IO)\n");
+    break;
+  case BUN_ERR_TRUNCATED:
+    fprintf(stderr, "Exit with status code 4 (BUN_ERR_TRUNCATED)\n");
+    break;
+  case BUN_ERR_OVERFLOW:
+    fprintf(stderr, "Exit with status code 5 (BUN_ERR_OVERFLOW)\n");
+    break;
+  case BUN_ERR_SECURITY:
+    fprintf(stderr, "Exit with status code 6 (BUN_ERR_SECURITY)\n");
+    break;
+  case BUN_ERR_CORRUPT:
+    fprintf(stderr, "Exit with status code 7 (BUN_ERR_CORRUPT)\n");
+    break;
+  default:
+    case BUN_OK:
+    break;
   }
 }
 
@@ -42,6 +83,7 @@ int main(int argc, char *argv[]) {
   result = bun_parse_header(&ctx, &header);
   if (result != BUN_OK) {
     print_errors(&ctx);
+    print_result_code(result);
     bun_close(&ctx);
     return map_exit_code(result);
   }
@@ -62,6 +104,7 @@ int main(int argc, char *argv[]) {
   result = bun_parse_assets(&ctx, &header);
   if (result != BUN_OK) {
     print_errors(&ctx);
+    print_result_code(result);
   }
 
   bun_close(&ctx);
