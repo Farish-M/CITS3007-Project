@@ -304,8 +304,9 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   for (u32 i = 0; i < header->asset_count; i++) {
     u8 buf[BUN_ASSET_RECORD_SIZE];
 
-    long next_record_pos =
-        (long)(assetTableStart + (u64)(i + 1) * BUN_ASSET_RECORD_SIZE);
+    // Go to the current record in the table
+    fseek(ctx->file, (long)(assetTableStart + (u64)i * BUN_ASSET_RECORD_SIZE),
+          SEEK_SET);
 
     if (fread(buf, 1, BUN_ASSET_RECORD_SIZE, ctx->file) !=
         BUN_ASSET_RECORD_SIZE) {
@@ -387,11 +388,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
           }
         }
       }
-    }
-
-    if (fseek(ctx->file, next_record_pos, SEEK_SET) != 0) {
-      add_error(ctx, "Failed to seek asset table for next record");
-      return worst_error(result, BUN_ERR_IO);
     }
 
     if (AssetContent.data_offset + AssetContent.data_size >
