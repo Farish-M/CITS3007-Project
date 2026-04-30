@@ -151,3 +151,5 @@ When deployed, the parser should be ran in a separate process with restricted OS
 *You may use genAI tools to assist in coming up with ideas, or generating code - but all content must be reviewed by members of the group, and you must note (in your report, or your code) where you have used it.*
 
 OpenAI ChatGPT 5.5 was utilised via Codex in the creation of `bunfile_fixture_generator.py`. Initially there was an attempt to nest parts of `bunfile_generator.py` into reusable functions that could be modified to generate malformed data but it relied on updated libraries not available for the version of Python (3.8) that is present in the CITS3007 SDE. 
+
+ClaudeAI Sonnet 4.6 was used in 5. Security Aspects to recommend changes in the BUN format and parser.
