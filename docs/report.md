@@ -71,6 +71,10 @@ Using "10-overlapping-with-nonprintable.bun", from the sample folder, will outpu
 Asset and string table overlap
 Non-printable asset name
 
+### Exit Codes
+
+The command-line parser returns `0` for valid files, `1` for malformed files, and `2` for unsupported BUN features. Additional parser-specific result codes are also defined: truncated files and sections that extend past EOF return exit code `4` (`BUN_ERR_TRUNCATED`). Some additional codes, such as `BUN_ERR_OVERFLOW`, `BUN_ERR_SECURITY`, and `BUN_ERR_CORRUPT`, are defined for more specific failure cases. 
+
 ## 2. Decisions and Assumptions
 *Describe any decisions or assumptions you made while implementing the parser.*
 *For example: Do you address issues such as integer overflow or wraparound in offset and size arithmetic?*
@@ -87,6 +91,18 @@ The parser may still be able to read the asset record and display metadata such 
 
 In response to issue #10, which in part concerned the behaviour of the BUN parser when encountering an asset with a name that is longer than the assigned display buffer (`name[256]`). In old versions of the parser, the parser would exit with code `1` if any asset name was too long for the buffer to avoid a buffer overflow. After a significant rewrite of the parser, names too long for the disiplay buffer would instead be truncated and the file was accepted as valid. To settle this issue, we decided that the truncating behaviour was correct as the BUN spec does not specify a limit to the size of an asset name as long as it fits within the string table (`(u64)name_offset + (u64)name_length <= string_table_size`). When the asset name must be truncated, an ellipsis is appended to the asset name in the output so as to inform the user that it has been truncated without returning an error or warning. 
 
+### Additional Status Codes
+
+These codes are an implementation decision rather than a requirement of the BUN specification. We decided to use additional parser result codes beyond the basic outcomes of `BUN_OK`, `BUN_MALFORMED`, `BUN_UNSUPPORTED`, and `BUN_ERR_IO` because more specific failures are useful when debugging parser behaviour.
+
+We use `BUN_ERR_TRUNCATED` for files that end before a required structure can be fully read, such as a shortened header or a section that extends past EOF. This is treated separately because it can indicate an incomplete download or damaged file transfer rather than a logically invalid field value. This code appears as exit code `4`.
+
+We use `BUN_ERR_OVERFLOW` when offset and size arithmetic cannot be performed safely. The BUN format uses 64-bit offsets and sizes, so calculations such as `asset_table_offset + asset_count * BUN_ASSET_RECORD_SIZE`, `string_table_offset + string_table_size`, and `data_section_offset + data_section_size` must be checked before use. If arithmetic wraps around, a section can appear to be inside the file even though the original values describe an impossible or malicious range. 
+
+We use `BUN_ERR_SECURITY` for cases where a file may be representable but is unsafe or unreasonable to process, such as an excessive `asset_count` that could cause denial-of-service behaviour by forcing the parser to loop for too long. 
+
+We use `BUN_ERR_CORRUPT` for cases where asset data is internally inconsistent after decoding, such as RLE data that expands to a different size from `uncompressed_size`. This separates corrupted payload data from broader structural problems in the file. 
+
 ## 3. Libraries Used
 *List any third-party libraries your executable depends on and briefly describe their purpose.*
 
@@ -94,7 +110,7 @@ The main `bun_parser` executable does not depend on any third-party libraries. I
 
 ### Other Programs in the Repository
 
-The `tests/test_runner` executable depends on the third-party Check unit testing framework. This is included through `#include <check.h>` in `tests/test_bun.c`, and the Makefile links it using `pkg-config --cflags --libs check`. Check provides the test suite, test case, assertion, and test runner APIs used by the unit tests, such as `START_TEST`, `ck_assert_int_eq`, `suite_create`, `tcase_add_test`, and `srunner_run_all`. This dependency is only required for building and running the test executable, not by the main parser. These dependencies are noted in the `README.md` file for users who wish to build the `tests/test_runner` executable. 
+The `tests/test_runner` executable depends on the third-party Check unit testing framework. This is included through `#include <check.h>` in `tests/test_bun.c`, and the Makefile links it using `pkg-config --cflags --libs check`. Check provides the test suite, test case, assertion, and test runner APIs used by the unit tests, such as `START_TEST`, `ck_assert_int_eq`, `suite_create`, `tcase_add_test`, and `srunner_run_all`. This dependency is only required for building and running the test executable, not by the main parser. 
 
 The Python scripts do not use third-party Python packages. They only use Python standard library modules
 
