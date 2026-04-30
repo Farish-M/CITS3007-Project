@@ -181,3 +181,5 @@ When deployed, the parser should be ran in a separate process with restricted OS
 *You may use genAI tools to assist in coming up with ideas, or generating code - but all content must be reviewed by members of the group, and you must note (in your report, or your code) where you have used it.*
 
 OpenAI ChatGPT 5.5 was utilised via Codex in the creation of `bunfile_fixture_generator.py`. Initially there was an attempt to nest parts of `bunfile_generator.py` into reusable functions that could be modified to generate malformed data but it relied on updated libraries not available for the version of Python (3.8) that is present in the CITS3007 SDE.
+
+Claude Sonnet 4.6 was used in the recommendations for changes to security risks faced in Trinity's deployment. Claude was also used in the debugging various bugs in the parser, such as with identifying an issues with the offset and creating stderr messages for me to identify the outlying issue, and identiying the lack of an overflow check in the parser.
