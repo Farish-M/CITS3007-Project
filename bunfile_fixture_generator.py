@@ -348,12 +348,17 @@ def patch_header_u64(path, field, value):
 def simple_asset(name=b"asset", payload=b"data"):
     return BunAsset(name, payload)
 
+def fixture_path(root, category, filename):
+    directory = root / category
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory / filename
+
 def generate_test_fixtures(root: Path = Path("tests")) -> None:
     """Generate valid and deliberately malformed BUN fixtures."""
-    write_bun_file(root / "valid-01-empty.bun", [])
+    write_bun_file(fixture_path(root, "valid", "01-empty.bun"), [])
 
     write_bun_file(
-        root / "valid-02-many-assets.bun",
+        fixture_path(root, "valid", "02-many-assets.bun"),
         [
             BunAsset(b"readme.txt", b"Line one\nLine two\n", asset_type=ASSET_TYPE_TEXT),
             BunAsset(
@@ -383,35 +388,41 @@ def generate_test_fixtures(root: Path = Path("tests")) -> None:
         name = f"bulk/asset-{i:03d}.bin".encode("ascii")
         payload = bytes([(i + j) % 256 for j in range(4096)])
         large_assets.append(BunAsset(name, payload, asset_type=ASSET_TYPE_TEXTURE))
-    write_bun_file(root / "valid-03-large.bun", large_assets)
+    write_bun_file(fixture_path(root, "valid", "03-large.bun"), large_assets)
 
-    write_bun_file(root / "invalid-01-bad-magic.bun", [], header_overrides={"magic": 0})
+    case_name_too_large(fixture_path(root, "valid", "21-name-too-large.bun"))
+
     write_bun_file(
-        root / "invalid-02-bad-version.bun",
+        fixture_path(root, "invalid", "01-bad-magic.bun"),
+        [],
+        header_overrides={"magic": 0},
+    )
+    write_bun_file(
+        fixture_path(root, "invalid", "02-bad-version.bun"),
         [],
         header_overrides={"version_major": BUN_VERSION_MAJOR + 1},
     )
     write_bun_file(
-        root / "invalid-03-misaligned-data-offset.bun",
+        fixture_path(root, "invalid", "03-misaligned-data-offset.bun"),
         [BunAsset(b"hello", b"world")],
         header_overrides={"data_section_offset": 157},
     )
     write_bun_file(
-        root / "invalid-04-name-out-of-bounds.bun",
+        fixture_path(root, "invalid", "04-name-out-of-bounds.bun"),
         [BunAsset(b"hello", b"world")],
         record_overrides={0: {"name_offset": 100, "name_length": 5}},
     )
     write_bun_file(
-        root / "invalid-05-data-out-of-bounds.bun",
+        fixture_path(root, "invalid", "05-data-out-of-bounds.bun"),
         [BunAsset(b"hello", b"world")],
         record_overrides={0: {"data_offset": 100, "data_size": 5}},
     )
     write_bun_file(
-        root / "invalid-06-rle-zero-count.bun",
+        fixture_path(root, "invalid", "06-rle-zero-count.bun"),
         [BunAsset(b"bad.rle", b"\x00A", uncompressed_size=1, compression=COMPRESS_RLE)],
     )
     write_bun_file(
-        root / "invalid-07-truncated-header.bun",
+        fixture_path(root, "invalid", "07-truncated-header.bun"),
         [BunAsset(b"hello", b"world")],
         truncate_to=20,
     )
@@ -526,39 +537,38 @@ def case_unknown_flags(path):
     write_bun_file(path, [BunAsset(b"flags", b"data", flags=0x4)])
 
 MALFORMED_CASES = [
-    ("invalid-08-misaligned-section.bun", case_misaligned_section),
-    ("invalid-09-asset-table-offset-past-eof.bun", case_asset_table_offset_past_eof),
-    ("invalid-10-string-table-offset-past-eof.bun", case_string_table_offset_past_eof),
-    ("invalid-11-data-section-offset-past-eof.bun", case_data_section_offset_past_eof),
-    ("invalid-12-asset-table-exceeds-eof.bun", case_asset_table_exceeds_eof),
-    ("invalid-13-string-table-exceeds-eof.bun", case_string_table_exceeds_eof),
-    ("invalid-14-data-section-exceeds-eof.bun", case_data_section_exceeds_eof),
-    ("invalid-15-asset-string-overlap.bun", case_asset_string_overlap),
-    ("invalid-16-asset-data-overlap.bun", case_asset_data_overlap),
-    ("invalid-17-string-data-overlap.bun", case_string_data_overlap),
-    ("invalid-18-truncated-asset-record.bun", case_truncated_asset_record),
-    ("invalid-19-empty-name.bun", case_empty_name),
-    ("invalid-20-name-out-of-bounds.bun", case_name_out_of_bounds),
-    ("invalid-21-name-too-large.bun", case_name_too_large),
-    ("invalid-22-non-printable-name.bun", case_non_printable_name),
-    ("invalid-23-data-out-of-bounds.bun", case_data_out_of_bounds),
-    ("invalid-24-rle-odd-size.bun", case_rle_odd_size),
-    ("invalid-25-rle-zero-count.bun", case_rle_zero_count),
-    ("invalid-26-rle-expanded-too-large.bun", case_rle_expanded_too_large),
-    ("invalid-27-rle-expanded-size-mismatch.bun", case_rle_expanded_size_mismatch),
+    ("08-misaligned-section.bun", case_misaligned_section),
+    ("09-asset-table-offset-past-eof.bun", case_asset_table_offset_past_eof),
+    ("10-string-table-offset-past-eof.bun", case_string_table_offset_past_eof),
+    ("11-data-section-offset-past-eof.bun", case_data_section_offset_past_eof),
+    ("12-asset-table-exceeds-eof.bun", case_asset_table_exceeds_eof),
+    ("13-string-table-exceeds-eof.bun", case_string_table_exceeds_eof),
+    ("14-data-section-exceeds-eof.bun", case_data_section_exceeds_eof),
+    ("15-asset-string-overlap.bun", case_asset_string_overlap),
+    ("16-asset-data-overlap.bun", case_asset_data_overlap),
+    ("17-string-data-overlap.bun", case_string_data_overlap),
+    ("18-truncated-asset-record.bun", case_truncated_asset_record),
+    ("19-empty-name.bun", case_empty_name),
+    ("20-name-out-of-bounds.bun", case_name_out_of_bounds),
+    ("22-non-printable-name.bun", case_non_printable_name),
+    ("23-data-out-of-bounds.bun", case_data_out_of_bounds),
+    ("24-rle-odd-size.bun", case_rle_odd_size),
+    ("25-rle-zero-count.bun", case_rle_zero_count),
+    ("26-rle-expanded-too-large.bun", case_rle_expanded_too_large),
+    ("27-rle-expanded-size-mismatch.bun", case_rle_expanded_size_mismatch),
     (
-        "invalid-28-uncompressed-size-on-uncompressed-asset.bun",
+        "28-uncompressed-size-on-uncompressed-asset.bun",
         case_uncompressed_size_on_uncompressed_asset,
     ),
-    ("unsupported-29-checksum.bun", case_unsupported_checksum),
-    ("unsupported-30-unknown-flags.bun", case_unknown_flags),
+    ("29-checksum.bun", case_unsupported_checksum),
+    ("30-unknown-flags.bun", case_unknown_flags),
 ]
 
 def generate_all_malformed(root: Path = Path("tests")) -> None:
     """Generate one targeted fixture for each parser-detected malformed case."""
     generate_test_fixtures(root)
     for filename, generate in MALFORMED_CASES:
-        generate(root / filename)
+        generate(fixture_path(root, "invalid", filename))
 
 def ask_choice(prompt, options):
     while True:
