@@ -430,7 +430,8 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     }
 
     printf("------------ Asset %u ------------\n", i);
-    printf("Name:                %s\n", name);
+    printf("Name:                %s%s\n", name,
+           AssetContent.name_length > 255 ? "..." : "");
     printf("Type:                %u\n", AssetContent.type);
     printf("Size:                %llu\n",
            (unsigned long long)AssetContent.data_size);
