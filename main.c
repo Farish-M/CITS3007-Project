@@ -30,6 +30,8 @@ static int map_exit_code(bun_result_t r) {
 }
 
 static void print_result_code(bun_result_t r) {
+  // Check status code and print standard error for given code
+  // Exit with no errors if status code is BUN_OK
   switch (r) {
   case BUN_MALFORMED:
     fprintf(stderr, "Exit with status code 1 (BUN_MALFORMED)\n");
@@ -53,7 +55,7 @@ static void print_result_code(bun_result_t r) {
     fprintf(stderr, "Exit with status code 7 (BUN_ERR_CORRUPT)\n");
     break;
   default:
-    case BUN_OK:
+  case BUN_OK:
     break;
   }
 }

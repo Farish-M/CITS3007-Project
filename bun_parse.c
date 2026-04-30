@@ -18,7 +18,7 @@ static void add_error(BunParseContext *ctx, const char *msg) {
 }
 
 // Accumulates new results, and prioritise the "worst" error
-// Priority: BUN_ERROR_IO > BUN_MALFORMED > BUN_SUPPORTED
+// Priority: BUN_ERROR_IO > BUN_MALFORMED > BUN_SUPPORTED > etc
 // If no errors then BUN_OK
 static bun_result_t worst_error(bun_result_t current, bun_result_t incoming) {
   if (incoming == BUN_ERR_IO || current == BUN_ERR_IO) {
@@ -27,11 +27,14 @@ static bun_result_t worst_error(bun_result_t current, bun_result_t incoming) {
   if (incoming == BUN_ERR_CORRUPT || current == BUN_ERR_CORRUPT) {
     return BUN_ERR_IO;
   }
+  if (incoming == BUN_ERR_OVERFLOW || current == BUN_ERR_OVERFLOW) {
+    return BUN_ERR_OVERFLOW;
+  }
   if (incoming == BUN_ERR_SECURITY || current == BUN_ERR_SECURITY) {
-    return BUN_ERR_IO;
+    return BUN_ERR_SECURITY;
   }
   if (incoming == BUN_ERR_TRUNCATED || current == BUN_ERR_TRUNCATED) {
-    return BUN_ERR_IO;
+    return BUN_ERR_TRUNCATED;
   }
   if (incoming == BUN_MALFORMED || current == BUN_MALFORMED) {
     return BUN_MALFORMED;
@@ -104,25 +107,19 @@ bun_result_t bun_open(const char *path, BunParseContext *ctx) {
 }
 
 bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
-  bun_result_t result = BUN_OK;
+  bun_result_t result = BUN_OK; // Store status code
   u8 buf[BUN_HEADER_SIZE];
 
-  // our file is far too short, and cannot be valid!
-  // (query: how do we let `main` know that "file was too short"
-  // was the exact problem? Where can we put details about the
-  // exact validation problem that occurred?)
   if (ctx->file_size < (long)BUN_HEADER_SIZE) {
     add_error(ctx, "Truncated file");
     return BUN_ERR_TRUNCATED;
   }
 
-  // slurp the header into `buf`
   if (fread(buf, 1, BUN_HEADER_SIZE, ctx->file) != BUN_HEADER_SIZE) {
     add_error(ctx, "Failed to read header");
     result = worst_error(result, BUN_ERR_IO);
   }
 
-  // TODO: populate `header` from `buf`.
   size_t offset = 0;
   header->magic = read_u32_le(buf, offset);
   offset += 4;
@@ -146,9 +143,6 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   header->data_section_size = read_u64_le(buf, offset);
   offset += 8;
   header->reserved = read_u64_le(buf, offset);
-
-  // TODO: validate fields and return BUN_MALFORMED or BUN_UNSUPPORTED
-  // as required by the spec. The magic check is a good place to start.
 
   if (!isMagic(header)) {
     add_error(ctx, "Invalid magic number");
@@ -175,7 +169,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
 static bun_result_t validate_rle_data(BunParseContext *ctx,
                                       const BunHeader *header,
                                       const BunAssetRecord *r) {
-  bun_result_t result = BUN_OK;
+  bun_result_t result = BUN_OK; // Store exit status
   // RLE data must be an even amount of bytes
   if (r->data_size % 2 != 0) {
     add_error(ctx, "RLE data size is not even");
@@ -235,10 +229,10 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
 }
 
 bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
-  bun_result_t result = BUN_OK;
+  bun_result_t result = BUN_OK; // Store exit status
   u64 file_size = (u64)ctx->file_size;
 
-  // TODO: implement asset record parsing and validation
+  // Check for alignment and offsets
   if (!sectionsAligned(header)) {
     add_error(ctx, "Misaligned section offset or size");
     result = worst_error(result, BUN_MALFORMED);
@@ -263,13 +257,15 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     add_error(ctx, "Invalid string table offset");
     result = worst_error(result, BUN_MALFORMED);
   }
-
+  
+  // Check for asset overflow
   if (header->asset_count >
-      UINT64_MAX - (u64)header->asset_count * BUN_ASSET_RECORD_SIZE) {
-    add_error(ctx, "asset_count causes an arithmetic overflow");
-    return BUN_ERR_OVERFLOW;
-  }
-
+    UINT64_MAX - (u64)header->asset_count * BUN_ASSET_RECORD_SIZE) {
+      add_error(ctx, "asset_count causes an arithmetic overflow");
+      return BUN_ERR_OVERFLOW;
+    }
+    
+  // Boundary and overlap checks on asset table, string table, and data section
   u64 assetTableStart = header->asset_table_offset;
   u64 assetTableEnd =
       assetTableStart + (u64)header->asset_count * BUN_ASSET_RECORD_SIZE;
@@ -315,6 +311,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     result = worst_error(result, BUN_ERR_IO);
   }
 
+  // Check for excessive asset counts
   if (header->asset_count > 100000) {
     add_error(ctx, "asset_count exceeds safe limit");
     return BUN_ERR_SECURITY;
@@ -333,6 +330,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
       return BUN_MALFORMED;
     }
 
+    // Asset variables
     BunAssetRecord AssetContent;
     size_t o = 0;
 
@@ -344,7 +342,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     o += 8;
     AssetContent.data_size = read_u64_le(buf, o);
     o += 8;
-
     AssetContent.uncompressed_size = read_u64_le(buf, o);
     o += 8;
     AssetContent.compression = read_u32_le(buf, o);
@@ -358,6 +355,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     char name[256] = "<no name>";
     int name_ok = 1;
 
+    // Asset name checks
     if (AssetContent.name_length == 0) {
       add_error(ctx, "Name does not exist");
       result = worst_error(result, BUN_MALFORMED);
@@ -444,6 +442,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
       result = worst_error(result, BUN_UNSUPPORTED);
     }
 
+    // Asset output
     printf("------------ Asset %u ------------\n", i);
     printf("Name:                %s%s\n", name,
            AssetContent.name_length > 255 ? "..." : "");
