@@ -353,7 +353,7 @@ def fixture_path(root, category, filename):
     directory.mkdir(parents=True, exist_ok=True)
     return directory / filename
 
-def generate_test_fixtures(root: Path = Path("tests")) -> None:
+def generate_test_fixtures(root: Path = Path("tests/fixtures")) -> None:
     """Generate valid and deliberately malformed BUN fixtures."""
     write_bun_file(fixture_path(root, "valid", "01-empty.bun"), [])
 
@@ -564,7 +564,7 @@ MALFORMED_CASES = [
     ("30-unknown-flags.bun", case_unknown_flags),
 ]
 
-def generate_all_malformed(root: Path = Path("tests")) -> None:
+def generate_all_malformed(root: Path = Path("tests/fixtures")) -> None:
     """Generate one targeted fixture for each parser-detected malformed case."""
     generate_test_fixtures(root)
     for filename, generate in MALFORMED_CASES:
