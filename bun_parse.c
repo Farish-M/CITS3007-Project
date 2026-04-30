@@ -282,16 +282,6 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   }
 
   if (assetTableEnd > stringTableStart && assetTableStart < stringTableEnd) {
-    fprintf(stderr,
-            "[DEBUG] assetTableStart=%" PRIu64 " assetTableEnd=%" PRIu64 "\n",
-            assetTableStart, assetTableEnd);
-    fprintf(stderr,
-            "[DEBUG] stringTableStart=%" PRIu64 " stringTableEnd=%" PRIu64 "\n",
-            stringTableStart, stringTableEnd);
-    fprintf(stderr,
-            "[DEBUG] dataTableStart=%" PRIu64 " dataTableEnd=%" PRIu64 "\n",
-            dataTableStart, dataTableEnd);
-
     add_error(ctx, "Asset and string table overlap");
     result = worst_error(result, BUN_MALFORMED);
   }
