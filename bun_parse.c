@@ -264,7 +264,8 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     result = worst_error(result, BUN_MALFORMED);
   }
 
-  if (header->asset_count > (UINT64_MAX / BUN_ASSET_RECORD_SIZE)) {
+  if (header->asset_count >
+      UINT64_MAX - (u64)header->asset_count * BUN_ASSET_RECORD_SIZE) {
     add_error(ctx, "asset_count causes an arithmetic overflow");
     return BUN_ERR_OVERFLOW;
   }

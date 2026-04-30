@@ -22,6 +22,10 @@ static int map_exit_code(bun_result_t r) {
     return 6;
   case BUN_ERR_CORRUPT:
     return 7;
+  default:
+    // Default returns 3 as any unknown error code is an unexpected internal
+    // problem
+    return 3;
   }
 }
 
