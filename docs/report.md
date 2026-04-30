@@ -78,15 +78,23 @@ Non-printable asset name
 *Are there any ambiguities in the BUN specification that required you to make a judgement call?*
 *If so, what did you decide, and why?*
 
+### Decisions on Malformed RLE Data
+
 In response to issue #6, "RLE zero-count asset reports no error", we decided that malformed RLE data should cause parsing to fail. RLE payloads are made of count/value integer pairs and a zero-count for one or more pairs means that there are integer pairs which do not contribute to the decompressed output but are still included in the compressed input. This indicates malformed compressed data. 
 The parser may still be able to read the asset record and display metadata such as the asset name, size, and compression type. However, once the RLE payload fails validation, the asset should not be treated as valid. Therefore we report the malformed RLE data and return an error instead of accepting the file.
+
+### Decisions on Truncating Asset Name Data
+
+In response to issue #10, which in part concerned the behaviour of the BUN parser when encountering an asset with a name that is longer than the assigned display buffer (`name[256]`). In old versions of the parser, the parser would exit with code `1` if any asset name was too long for the buffer to avoid a buffer overflow. After a significant rewrite of the parser, names too long for the disiplay buffer would instead be truncated and the file was accepted as valid. To settle this issue, we decided that the truncating behaviour was correct as the BUN spec does not specify a limit to the size of an asset name as long as it fits within the string table (`(u64)name_offset + (u64)name_length <= string_table_size`). When the asset name must be truncated, an ellipsis is appended to the asset name in the output so as to inform the user that it has been truncated without returning an error or warning. 
 
 ## 3. Libraries Used
 *List any third-party libraries your executable depends on and briefly describe their purpose.*
 
 The main `bun_parser` executable does not depend on any third-party libraries. It is built from `main.c` and `bun_parse.c`, and only uses standard C library headers such as `stdio.h`, `stdlib.h`, `stdint.h`, `inttypes.h`, `string.h`, and `assert.h`.
 
-The `tests/test_runner` executable depends on the third-party Check unit testing framework. This is included through `#include <check.h>` in `tests/test_bun.c`, and the Makefile links it using `pkg-config --cflags --libs check`. Check provides the test suite, test case, assertion, and test runner APIs used by the unit tests, such as `START_TEST`, `ck_assert_int_eq`, `suite_create`, `tcase_add_test`, and `srunner_run_all`. This dependency is only required for building and running the test executable, not by the main parser. 
+### Other Programs in the Repository
+
+The `tests/test_runner` executable depends on the third-party Check unit testing framework. This is included through `#include <check.h>` in `tests/test_bun.c`, and the Makefile links it using `pkg-config --cflags --libs check`. Check provides the test suite, test case, assertion, and test runner APIs used by the unit tests, such as `START_TEST`, `ck_assert_int_eq`, `suite_create`, `tcase_add_test`, and `srunner_run_all`. This dependency is only required for building and running the test executable, not by the main parser. These dependencies are noted in the `README.md` file for users who wish to build the `tests/test_runner` executable. 
 
 The Python scripts do not use third-party Python packages. They only use Python standard library modules
 
