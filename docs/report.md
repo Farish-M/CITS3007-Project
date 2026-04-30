@@ -63,7 +63,13 @@ For each asset table in the bun file we will display it's name, consisting of no
 ### Invalid Files
 When parsing an invalid file, the parser will attempt to display as much of the file as it can safely and sensibly output. Followed by error messages displaying the cause of the error, i.e. "Asset and data section overlap"
 
-As the parser runs through the BUN file it accumulates errors, once finished/terminated it was display each error that encountered (1 per line).
+As the parser runs through the BUN file it accumulates errors, once finished/terminated it will display each error that was encountered (1 per line).
+
+Example:
+Using "10-overlapping-with-nonprintable.bun", from the sample folder, will output the asset table and the error messages:
+
+Asset and string table overlap
+Non-printable asset name
 
 ## 2. Decisions and Assumptions
 *Describe any decisions or assumptions you made while implementing the parser.*
