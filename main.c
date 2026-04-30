@@ -31,9 +31,6 @@ static int map_exit_code(bun_result_t r) {
 
 static void print_result_code(bun_result_t r) {
   switch (r) {
-  case BUN_OK:
-    fprintf(stderr, "Exit with status code 0 (BUN_OK)\n");
-    break;
   case BUN_MALFORMED:
     fprintf(stderr, "Exit with status code 1 (BUN_MALFORMED)\n");
     break;
@@ -56,7 +53,7 @@ static void print_result_code(bun_result_t r) {
     fprintf(stderr, "Exit with status code 7 (BUN_ERR_CORRUPT)\n");
     break;
   default:
-    fprintf(stderr, "Exit with unknown error");
+    case BUN_OK;
     break;
   }
 }
