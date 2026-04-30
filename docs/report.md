@@ -104,7 +104,38 @@ The Python scripts do not use third-party Python packages. They only use Python 
 * *Would you recommend any changes to the BUN format or the parser to address them?*
 * *If so, describe the changes and explain how they would help.*
 
-[Your answer here]
+### Security Risks
+**Malicious player-created content**
+Allowing content to be created by players is the most serious risk, as they are attacker-controlled. An attacker can craft a BUN file with precisely chosen field values to probe for parser bugs, test overflow conditions, or attempt to exploit the client. Highlighting the risk of malicious players to attack other player's devices.
+
+**Compromised server**
+Trinity's content is a potential risk if the game's server is comprimised, due to to client automatically downloading and parsing BUN files. Without verification of the origin of parsed BUN files, any server breach means an attacker can push malicious files to ever player all at once.
+
+**No cryptographic authentication**
+The BUN format does not have a signature or MAC field to prove it's authenticity, and proof it came from Trinity's servers. There is no way to detect tampering.
+
+**Denial of service via large asset_count**
+A lack of protection from a denial of service attack if `asset_count` is an excessive amount. Since the parser processes one record at a time, it won't crash due to memory. However, it will praser for a very long time, hanging the client.
+
+**Name-based path traversal**
+Asset names are validated as printable ASCII characters, but file paths such as ../../../etc/passwd are printable. If the game uses asset names to construct the file paths, this is a directory traversal vulnerability.
+
+**Unverified encryption flag**
+The parser doesn't enforce whether or not the content is encrypted, so a file can falsely claim its content as encrypted or not. This can confuse the game into processing unwanted raw data.
+
+### Recommended Changes and How They Help
+**Generative AI was used to recommend changes**
+**Adding a cryptographic signature to the BUN format**
+Adding a signature field to the header covering the entire file content, would allow the parser to verify the file against a hardcoded public key before processing it. This solution fixes two risks, the compromised server and tampered file risks; if a file doesn't have a valid signature its rejected immediately. So when players create content it would require a submission to Trinity's servers for moderation and signing, preventing players from developing malicious content and pushing it to other clients.
+
+**Capping `asset_count`**
+Limiting the amount of assets prevents risk from a denial-of-service loops. This can be done from adding conditionals to check the amount of assets counted, comparing it to a value and terminating immediately with an error when encountered.
+
+**Rejecting dangerous asset names in the parser**
+Detecting if any assets has names, with characters like '..', '/', '\', or null bytes, in the parser and displaying the error. Checking for directory traversal risk at the parser level, rather than the game sanitising the names.
+
+**Run the parser in a sandbox**
+When deployed, the parser should be ran in a separate process with restricted OS permissions such as, no network access, limiting filesystem access to the downloads directory, prevention to spawn child processes. This isn't directly a parser change, but rather where to use the parser, which can mitigate and limit the damage from an attacker.
 
 ## 6. Coding Standards
 *Describe any coding standards or conventions your group adopted (for example, naming conventions, code formatting, or rules around pointer arithmetic and memory management).*
