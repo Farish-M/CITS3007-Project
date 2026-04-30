@@ -24,6 +24,15 @@ static bun_result_t worst_error(bun_result_t current, bun_result_t incoming) {
   if (incoming == BUN_ERR_IO || current == BUN_ERR_IO) {
     return BUN_ERR_IO;
   }
+  if (incoming == BUN_ERR_CORRUPT || current == BUN_ERR_CORRUPT) {
+    return BUN_ERR_IO;
+  }
+  if (incoming == BUN_ERR_SECURITY || current == BUN_ERR_SECURITY) {
+    return BUN_ERR_IO;
+  }
+  if (incoming == BUN_ERR_TRUNCATED || current == BUN_ERR_TRUNCATED) {
+    return BUN_ERR_IO;
+  }
   if (incoming == BUN_MALFORMED || current == BUN_MALFORMED) {
     return BUN_MALFORMED;
   }
@@ -43,8 +52,6 @@ static u64 read_u64_le(const u8 *b, size_t o) {
          (u64)b[o + 3] << 24 | (u64)b[o + 4] << 32 | (u64)b[o + 5] << 40 |
          (u64)b[o + 6] << 48 | (u64)b[o + 7] << 56;
 }
-
-bun_result_t result = BUN_OK;
 
 static int isMagic(const BunHeader *header) {
   return header->magic == BUN_MAGIC;
@@ -97,6 +104,7 @@ bun_result_t bun_open(const char *path, BunParseContext *ctx) {
 }
 
 bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
+  bun_result_t result = BUN_OK;
   u8 buf[BUN_HEADER_SIZE];
 
   // our file is far too short, and cannot be valid!
@@ -105,7 +113,7 @@ bun_result_t bun_parse_header(BunParseContext *ctx, BunHeader *header) {
   // exact validation problem that occurred?)
   if (ctx->file_size < (long)BUN_HEADER_SIZE) {
     add_error(ctx, "Truncated file");
-    result = worst_error(result, BUN_MALFORMED);
+    return BUN_ERR_TRUNCATED;
   }
 
   // slurp the header into `buf`
@@ -218,7 +226,7 @@ static bun_result_t validate_rle_data(BunParseContext *ctx,
   if (total_expanded != r->uncompressed_size) {
     add_error(ctx, "RLE expanded size mismatch");
     fseek(ctx->file, saved_pos, SEEK_SET);
-    result = worst_error(result, BUN_MALFORMED);
+    result = worst_error(result, BUN_ERR_CORRUPT);
   }
 
   // Restore original file position
@@ -256,6 +264,11 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     result = worst_error(result, BUN_MALFORMED);
   }
 
+  if (header->asset_count > (UINT64_MAX / BUN_ASSET_RECORD_SIZE)) {
+    add_error(ctx, "asset_count causes an arithmetic overflow");
+    return BUN_ERR_OVERFLOW;
+  }
+
   u64 assetTableStart = header->asset_table_offset;
   u64 assetTableEnd =
       assetTableStart + (u64)header->asset_count * BUN_ASSET_RECORD_SIZE;
@@ -268,17 +281,17 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
 
   if (assetTableEnd > file_size) {
     add_error(ctx, "Asset entry table exceeds EOF");
-    result = worst_error(result, BUN_MALFORMED);
+    result = worst_error(result, BUN_ERR_TRUNCATED);
   }
 
   if (stringTableEnd > file_size) {
     add_error(ctx, "String table exceeds EOF");
-    result = worst_error(result, BUN_MALFORMED);
+    result = worst_error(result, BUN_ERR_TRUNCATED);
   }
 
   if (dataTableEnd > file_size) {
     add_error(ctx, "Data section exceeds EOF");
-    result = worst_error(result, BUN_MALFORMED);
+    result = worst_error(result, BUN_ERR_TRUNCATED);
   }
 
   if (assetTableEnd > stringTableStart && assetTableStart < stringTableEnd) {
@@ -299,6 +312,11 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   if (fseek(ctx->file, (long)assetTableStart, SEEK_SET) != 0) {
     add_error(ctx, "Failed to seek asset table");
     result = worst_error(result, BUN_ERR_IO);
+  }
+
+  if (header->asset_count > 100000) {
+    add_error(ctx, "asset_count exceeds safe limit");
+    return BUN_ERR_SECURITY;
   }
 
   for (u32 i = 0; i < header->asset_count; i++) {

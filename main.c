@@ -12,8 +12,16 @@ static int map_exit_code(bun_result_t r) {
     return 1;
   case BUN_UNSUPPORTED:
     return 2;
-  default:
+  case BUN_ERR_IO:
     return 3;
+  case BUN_ERR_TRUNCATED:
+    return 4;
+  case BUN_ERR_OVERFLOW:
+    return 5;
+  case BUN_ERR_SECURITY:
+    return 6;
+  case BUN_ERR_CORRUPT:
+    return 7;
   }
 }
 
