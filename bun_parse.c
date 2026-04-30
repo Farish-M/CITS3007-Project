@@ -6,11 +6,6 @@
 
 #include "bun.h"
 
-/**
- * Example helper: convert 4 bytes in `buf`, positioned at `offset`,
- * into a little-endian u32.
- */
-
 static void add_error(BunParseContext *ctx, const char *msg) {
   if (ctx->error_count < MAX_ERRORS) {
     ctx->errors[ctx->error_count++] = msg;
@@ -259,6 +254,7 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
   }
   
   // Check for asset overflow
+  // Claude Sonnet 4.6 was used to highlight and create an overflow check
   if (header->asset_count >
     UINT64_MAX - (u64)header->asset_count * BUN_ASSET_RECORD_SIZE) {
       add_error(ctx, "asset_count causes an arithmetic overflow");
