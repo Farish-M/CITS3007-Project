@@ -252,15 +252,15 @@ bun_result_t bun_parse_assets(BunParseContext *ctx, const BunHeader *header) {
     add_error(ctx, "Invalid string table offset");
     result = worst_error(result, BUN_MALFORMED);
   }
-  
+
   // Check for asset overflow
   // Claude Sonnet 4.6 was used to highlight and create an overflow check
   if (header->asset_count >
-    UINT64_MAX - (u64)header->asset_count * BUN_ASSET_RECORD_SIZE) {
-      add_error(ctx, "asset_count causes an arithmetic overflow");
-      return BUN_ERR_OVERFLOW;
-    }
-    
+      UINT64_MAX - (u64)header->asset_count * BUN_ASSET_RECORD_SIZE) {
+    add_error(ctx, "asset_count causes an arithmetic overflow");
+    return BUN_ERR_OVERFLOW;
+  }
+
   // Boundary and overlap checks on asset table, string table, and data section
   u64 assetTableStart = header->asset_table_offset;
   u64 assetTableEnd =
