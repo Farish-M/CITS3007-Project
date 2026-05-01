@@ -115,20 +115,21 @@ The `tests/test_runner` executable depends on the third-party Check unit testing
 The Python scripts do not use third-party Python packages. They only use Python standard library modules
 
 ## 4. Tools Used
+
 ### GCC Compiler Warnings (`-Wall -Wextra -Wpedantic`)
 We utilized strict GCC compiler warnings as a form of static analysis to catch potential bugs and code quality issues during compilation. 
-*   **Evidence:** The compiler flagged a warning: `bun_parse.c:254:7: warning: unused variable 'counttest' [-Wunused-variable]`. We removed this unused variable to keep the code clean. The commit hash before the fix: `e1aca9e`; the commit hash after the fix: `587e661`.
+*   **Evidence:** The compiler flagged a warning: `bun_parse.c:254:7: warning: unused variable 'counttest' [-Wunused-variable]`. We removed this unused variable to keep the code clean. The commit hash before the fix: [`e1aca9e`](https://github.com/Farish-M/CITS3007-Project/commit/e1aca9e1c0985a1f6639999aa8fb823c9960cb62); the commit hash after the fix: [`587e661`](https://github.com/Farish-M/CITS3007-Project/commit/587e661c515495a792f9be9700f6d05df41e1ea0).
 
 ### Clang-Format
 We used `clang-format` to enforce consistent code styling across the codebase. This prevented syntax formatting issues and merge conflicts during development.
-*   **Evidence:** We added a `format` target to our `Makefile` and formatted the codebase in commit `698f488` (`chore: format code, add format to Makefile`). This can be reproduced by running `make format` on any unfixed commit.
+*   **Evidence:** We added a `format` target to our `Makefile` and formatted the codebase in commit [`698f488`](https://github.com/Farish-M/CITS3007-Project/commit/698f4884c1330540a883b1991344e1d03b9ea15b) (`chore: format code, add format to Makefile`). This can be reproduced by running `make format` on any unfixed commit.
 
 ### Libcheck (Unit Testing)
 We used `libcheck` as the unit testing framework to verify our parser against both valid and invalid BUN sample files.
-*   **Evidence:** `feature/tests` branch has a commit (`331833a`) that adds unit tests executed via running `make test`. It verifies that the parser is handling cases such as RLE zero-count payloads and section overlaps correctly.
+*   **Evidence:** `feature/tests` branch has a commit ([`331833a`](https://github.com/Farish-M/CITS3007-Project/commit/331833af6641273996310da614e641ebad65e924)) that adds unit tests executed via running `make test`. It verifies that the parser is handling cases such as RLE zero-count payloads and section overlaps correctly.
 
 ## 5. Security Aspects
-*Your management has proposed deploying your parser in the client for Trinity's new game, Brutal Orc Battles In Space a large-scale science fiction MMORPG.* [cite: 130] *In this deployment, the game client would automatically download, from Trinity's servers, BUN files that describe new galaxy regions and player-created content, and pass them to your parser.*
+*Your management has proposed deploying your parser in the client for Trinity's new game, Brutal Orc Battles In Space a large-scale science fiction MMORPG.* *In this deployment, the game client would automatically download, from Trinity's servers, BUN files that describe new galaxy regions and player-created content, and pass them to your parser.*
 *Discuss:*
 * *What security risks does this deployment scenario raise?*
 * *Would you recommend any changes to the BUN format or the parser to address them?*
