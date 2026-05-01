@@ -42,6 +42,11 @@ We use [Conventional Commits](https://www.conventionalcommits.org/). Commit mess
 ### C Formatting
 We use `clang-format` to maintain a consistent C coding style. Please ensure your code is formatted before committing. 
 
+Ubuntu/Debian install:
+```sh
+sudo apt install clang-format
+```
+
 ### Doxygen Comments
 We use **Doxygen** for function and file-level documentation. Every new function or structure needs a brief Doxygen comment explaining its purpose, parameters, and return values.
 
