@@ -16,7 +16,7 @@ TEST    = tests/test_bun.c
 
 .PHONY: all test clean format
 
-all: format bun_parser
+all: bun_parser
 
 bun_parser: $(MAIN) $(LIB)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
