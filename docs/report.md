@@ -13,10 +13,9 @@
 ---
 
 ## 1. Output Format
-*Document the human-readable output format produced by your parser for both valid and invalid files, and the exit codes used for non-BUN-OK outcomes.*
-*Document the codes you use in your report.*
 
 ### Valid Files
+
 When parsing a valid file there will be at least 1 output, which is the bun header as displayed below
 
 **Bun Header**
@@ -62,6 +61,7 @@ Flags:               flags
 For each asset table in the bun file we will display it's name, consisting of non-zero printable ASCII characters, type, size of asset in bytes, the size of the asset uncompressed, the checksum validation (typically CRC-32), and flags for the asset being encrypted or executable.
 
 ### Invalid Files
+
 When parsing an invalid file, the parser will attempt to display as much of the file as it can safely and sensibly output. Followed by error messages displaying the cause of the error, i.e. "Asset and data section overlap"
 
 As the parser runs through the BUN file it accumulates errors, once finished/terminated it will display each error that was encountered (1 per line).
@@ -77,11 +77,6 @@ Non-printable asset name
 The command-line parser returns `0` for valid files, `1` for malformed files, and `2` for unsupported BUN features. Additional parser-specific result codes are also defined: truncated files and sections that extend past EOF return exit code `4` (`BUN_ERR_TRUNCATED`). Some additional codes, such as `BUN_ERR_OVERFLOW`, `BUN_ERR_SECURITY`, and `BUN_ERR_CORRUPT`, are defined for more specific failure cases. 
 
 ## 2. Decisions and Assumptions
-*Describe any decisions or assumptions you made while implementing the parser.*
-*For example: Do you address issues such as integer overflow or wraparound in offset and size arithmetic?*
-*Is special handling necessary or desirable?*
-*Are there any ambiguities in the BUN specification that required you to make a judgement call?*
-*If so, what did you decide, and why?*
 
 ### Decisions on Malformed RLE Data
 
@@ -105,7 +100,6 @@ We use `BUN_ERR_SECURITY` for cases where a file may be representable but is uns
 We use `BUN_ERR_CORRUPT` for cases where asset data is internally inconsistent after decoding, such as RLE data that expands to a different size from `uncompressed_size`. This separates corrupted payload data from broader structural problems in the file. 
 
 ## 3. Libraries Used
-*List any third-party libraries your executable depends on and briefly describe their purpose.*
 
 The main `bun_parser` executable does not depend on any third-party libraries. It is built from `main.c` and `bun_parse.c`, and only uses standard C library headers such as `stdio.h`, `stdlib.h`, `stdint.h`, `inttypes.h`, `string.h`, and `assert.h`.
 
@@ -133,48 +127,54 @@ We used `libcheck` as the unit testing framework to verify our parser against bo
 *   **Evidence:** `feature/tests` branch has a commit ([`331833a`](https://github.com/Farish-M/CITS3007-Project/commit/331833af6641273996310da614e641ebad65e924)) that adds unit tests executed via running `make test`. It verifies that the parser is handling cases such as RLE zero-count payloads and section overlaps correctly.
 
 ## 5. Security Aspects
-*Your management has proposed deploying your parser in the client for Trinity's new game, Brutal Orc Battles In Space a large-scale science fiction MMORPG.* *In this deployment, the game client would automatically download, from Trinity's servers, BUN files that describe new galaxy regions and player-created content, and pass them to your parser.*
-*Discuss:*
-* *What security risks does this deployment scenario raise?*
-* *Would you recommend any changes to the BUN format or the parser to address them?*
-* *If so, describe the changes and explain how they would help.*
 
 ### Security Risks
+
 **Malicious player-created content**
+
 Allowing content to be created by players is the most serious risk, as they are attacker-controlled. An attacker can craft a BUN file with precisely chosen field values to probe for parser bugs, test overflow conditions, or attempt to exploit the client. Highlighting the risk of malicious players to attack other player's devices.
 
 **Compromised server**
+
 Trinity's content is a potential risk if the game's server is comprimised, due to to client automatically downloading and parsing BUN files. Without verification of the origin of parsed BUN files, any server breach means an attacker can push malicious files to ever player all at once.
 
 **No cryptographic authentication**
+
 The BUN format does not have a signature or MAC field to prove it's authenticity, and proof it came from Trinity's servers. There is no way to detect tampering.
 
 **Denial of service via large asset_count**
+
 A lack of protection from a denial of service attack if `asset_count` is an excessive amount. Since the parser processes one record at a time, it won't crash due to memory. However, it will praser for a very long time, hanging the client.
 
 **Name-based path traversal**
+
 Asset names are validated as printable ASCII characters, but file paths such as ../../../etc/passwd are printable. If the game uses asset names to construct the file paths, this is a directory traversal vulnerability.
 
 **Unverified encryption flag**
+
 The parser doesn't enforce whether or not the content is encrypted, so a file can falsely claim its content as encrypted or not. This can confuse the game into processing unwanted raw data.
 
 ### Recommended Changes and How They Help
+
 **Generative AI was used to recommend changes**
+
 **Adding a cryptographic signature to the BUN format**
+
 Adding a signature field to the header covering the entire file content, would allow the parser to verify the file against a hardcoded public key before processing it. This solution fixes two risks, the compromised server and tampered file risks; if a file doesn't have a valid signature its rejected immediately. So when players create content it would require a submission to Trinity's servers for moderation and signing, preventing players from developing malicious content and pushing it to other clients.
 
 **Capping `asset_count`**
+
 Limiting the amount of assets prevents risk from a denial-of-service loops. This can be done from adding conditionals to check the amount of assets counted, comparing it to a value and terminating immediately with an error when encountered.
 
 **Rejecting dangerous asset names in the parser**
+
 Detecting if any assets has names, with characters like '..', '/', '\', or null bytes, in the parser and displaying the error. Checking for directory traversal risk at the parser level, rather than the game sanitising the names.
 
 **Run the parser in a sandbox**
+
 When deployed, the parser should be ran in a separate process with restricted OS permissions such as, no network access, limiting filesystem access to the downloads directory, prevention to spawn child processes. This isn't directly a parser change, but rather where to use the parser, which can mitigate and limit the damage from an attacker.
 
 ## 6. Coding Standards
-
-*Describe any coding standards or conventions your group adopted (for example, naming conventions, code formatting, or rules around pointer arithmetic and memory management).*
 
 ### C Source Code Formatting
 
@@ -187,16 +187,16 @@ The parser code also follows several local conventions. Fixed-width integer alia
 The project used a feature-branch workflow, as described in `CONTRIBUTING.md`. New work was generally developed on branches named by purpose, such as `feature/asset-parser`, `feature/rle-validation`, `display-multiple-errors`, `feature/spec-features-fixes`, `feature/tests`, and `feature/additonal-status-codes`, before being merged into `main` through pull requests. The commit history also shows the use of conventional commit prefixes such as `feat:`, `bugfix:`, `test:`, `docs:`, and `chore:`. This made it easier to distinguish parser behaviour changes from test, documentation, and maintenance work.
 
 ## 7. Challenges
-*Describe any challenges - technical or logistical - your group encountered during the project, and how you addressed them (or, if you were unable to, what the impact was).*
 
 **Error accumulation vs early termination**
+
 Deciding when to stop parsing as opposed to collecting more errors, was one of the main technical challenges we had encountered. Some faults, such as `fseek`, made continuing redundant; whilst other errors, like a bad asset name or overlaps, were safe to report and continue parsing. The way we address this was through `worst_error()` and `add_error()`, which accumulates results rather than returning immediately. There was also the consideration of which errors should be returned immedaitely and which shouldn't.
 
 **Global vs local state**
+
 A bug had arose during the later stages of development through `result` being unintentionally kept as a global variable rather than local to functions. This oversight produced misleading errors to be displayed, this was because errors from `bun_parse_header()` was bleeding into `bun_parse_assets()`. The solution to this was to trace the various locations where `result` was being written to.
 
 ## 8. Academic Conduct and GenAI Usage
-*You may use genAI tools to assist in coming up with ideas, or generating code - but all content must be reviewed by members of the group, and you must note (in your report, or your code) where you have used it.*
 
 OpenAI ChatGPT 5.5 was utilised via Codex in the creation of `bunfile_fixture_generator.py`. Initially there was an attempt to nest parts of `bunfile_generator.py` into reusable functions that could be modified to generate malformed data but it relied on updated libraries not available for the version of Python (3.8) that is present in the CITS3007 SDE.
 
